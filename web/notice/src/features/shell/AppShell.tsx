@@ -1,26 +1,49 @@
-import { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { Me } from '../../lib/api/auth'
 import { useLogout } from '../../lib/query/auth'
 import { useMyProfile } from '../../lib/query/profile'
 import { FeedScreen } from '../feed/FeedScreen'
 import { OnboardingFlow } from '../profile/OnboardingFlow'
 import { ProfileEditor } from '../profile/ProfileEditor'
+import { ReceivedView } from '../received/ReceivedView'
 
-type Tab = 'feed' | 'profile'
+type Tab = 'feed' | 'received' | 'profile'
+
+const TAB_PATHS: Record<Tab, string> = {
+  feed: '/',
+  received: '/received',
+  profile: '/profile',
+}
+
+function tabFromPath(pathname: string): Tab {
+  if (pathname === '/received') {
+    return 'received'
+  }
+
+  if (pathname === '/profile') {
+    return 'profile'
+  }
+
+  return 'feed'
+}
 
 /**
  * Authenticated shell. Onboarding gates the rest; once a profile exists the shell
- * branches between the feed (the primary appreciation-gated screen, M4) and the
- * profile editor (backbone §9.3). Copy stays appreciation-first, never
- * competitive (§2).
+ * branches between the feed, received appreciation, and profile editor
+ * (backbone §9.3). Copy stays appreciation-first, never competitive (§2).
  */
 export function AppShell({ me }: { me: Me }) {
   const logout = useLogout()
   const profile = useMyProfile()
-  const [tab, setTab] = useState<Tab>('feed')
+  const location = useLocation()
+  const navigate = useNavigate()
+  const tab = tabFromPath(location.pathname)
 
   const currentProfile = profile.data ?? null
   const showOnboarding = !currentProfile || currentProfile.status === 'draft'
+  const showTab = (nextTab: Tab) => {
+    void navigate(TAB_PATHS[nextTab])
+  }
 
   return (
     <div className="flex min-h-full flex-col bg-stone-50">
@@ -29,10 +52,13 @@ export function AppShell({ me }: { me: Me }) {
 
         {!showOnboarding && (
           <nav className="flex items-center gap-1 rounded-lg bg-stone-100 p-1">
-            <TabButton active={tab === 'feed'} onClick={() => setTab('feed')}>
+            <TabButton active={tab === 'feed'} onClick={() => showTab('feed')}>
               Feed
             </TabButton>
-            <TabButton active={tab === 'profile'} onClick={() => setTab('profile')}>
+            <TabButton active={tab === 'received'} onClick={() => showTab('received')}>
+              Received
+            </TabButton>
+            <TabButton active={tab === 'profile'} onClick={() => showTab('profile')}>
               Profile
             </TabButton>
           </nav>
@@ -65,7 +91,13 @@ export function AppShell({ me }: { me: Me }) {
       )}
 
       {!profile.isLoading && !profile.isError && !showOnboarding && currentProfile && (
-        tab === 'feed' ? <FeedScreen /> : <ProfileEditor profile={currentProfile} />
+        tab === 'feed' ? (
+          <FeedScreen />
+        ) : tab === 'received' ? (
+          <ReceivedView />
+        ) : (
+          <ProfileEditor profile={currentProfile} />
+        )
       )}
     </div>
   )

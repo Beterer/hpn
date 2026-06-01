@@ -133,6 +133,58 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
         invisible.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task Received_view_returns_private_perception_summary_without_ranking_copy()
+    {
+        var target = await CreateActiveParticipantAsync("received-target@example.com");
+        var senderOne = await CreateActiveParticipantAsync("received-sender-one@example.com");
+        var senderTwo = await CreateActiveParticipantAsync("received-sender-two@example.com");
+        var senderThree = await CreateActiveParticipantAsync("received-sender-three@example.com");
+        var categories = await GetCategoriesAsync(target.Client);
+        var warmSmile = categories.Single(c => c.Slug == "warm_smile");
+        var creative = categories.Single(c => c.Slug == "creative");
+
+        (await SubmitAsync(senderOne.Client, target.ProfileId, creative.Id, target.PhotoId, "received-creative-one"))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        (await SubmitAsync(senderTwo.Client, target.ProfileId, creative.Id, target.PhotoId, "received-creative-two"))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        (await SubmitAsync(senderThree.Client, target.ProfileId, warmSmile.Id, target.PhotoId, "received-warm"))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var response = await target.Client.GetAsync("/api/v1/appreciations/received?includeEvents=true", Ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        var root = doc.RootElement;
+
+        root.GetProperty("profileId").GetGuid().Should().Be(target.ProfileId);
+        root.GetProperty("headline").GetString().Should().Be("People often describe you in these ways.");
+        root.GetProperty("summary").GetString().Should().Contain("perceived");
+        root.GetProperty("total").GetInt32().Should().Be(3);
+
+        var receivedCategories = root.GetProperty("categories").EnumerateArray().ToArray();
+        receivedCategories.Select(c => c.GetProperty("slug").GetString()).Should().Equal("warm_smile", "creative");
+        receivedCategories[0].GetProperty("count").GetInt32().Should().Be(1);
+        receivedCategories[1].GetProperty("count").GetInt32().Should().Be(2);
+        receivedCategories[0].GetProperty("phrasing").GetString().Should().StartWith("People often");
+
+        var events = root.GetProperty("events").EnumerateArray().ToArray();
+        events.Should().HaveCount(3);
+        events[0].TryGetProperty("senderUserId", out _).Should().BeFalse();
+        events[0].GetProperty("phrasing").GetString().Should().StartWith("Someone");
+
+        var body = root.GetRawText().ToLowerInvariant();
+        body.Should().NotContain("score");
+        body.Should().NotContain("rank");
+        body.Should().NotContain("leaderboard");
+        body.Should().NotContain("popular");
+
+        var senderView = await senderOne.Client.GetAsync("/api/v1/appreciations/received", Ct);
+        senderView.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var senderDoc = JsonDocument.Parse(await senderView.Content.ReadAsStringAsync(Ct));
+        senderDoc.RootElement.GetProperty("profileId").GetGuid().Should().Be(senderOne.ProfileId);
+        senderDoc.RootElement.GetProperty("total").GetInt32().Should().Be(0);
+    }
+
     private sealed record Category(Guid Id, string Slug, string Label, int SortOrder);
 
     private async Task<Category[]> GetCategoriesAsync(HttpClient client)

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Hpn.Modules.Appreciation.Internal.Domain;
+using Hpn.Modules.Appreciation.Internal.Features.GetReceivedAppreciation;
 using Xunit;
 
 namespace Hpn.Modules.Appreciation.Tests;
@@ -45,5 +46,23 @@ public sealed class AppreciationDomainTests
         appreciation.IdempotencyKey.Should().Be("retry-key");
         appreciation.MatchesRequest(receiver, category, photo).Should().BeTrue();
         appreciation.MatchesRequest(receiver, Guid.NewGuid(), photo).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Received_appreciation_phrasing_stays_perception_based_without_ranking_language()
+    {
+        var curated = ReceivedAppreciationPhrasing.ForCategory("kind", "Kind");
+        // An unseeded slug exercises the generic fallback template.
+        var fallback = ReceivedAppreciationPhrasing.ForCategory("graceful", "Graceful");
+        var eventPhrase = ReceivedAppreciationPhrasing.ForEvent("warm_smile", "Warm smile");
+
+        curated.Should().StartWith("People often");
+        fallback.Should().StartWith("People often describe you as graceful");
+        eventPhrase.Should().StartWith("Someone noticed");
+        var joined = string.Join(' ', ReceivedAppreciationPhrasing.Headline, curated, fallback, eventPhrase);
+        joined.Should().NotContain("score");
+        joined.Should().NotContain("rank");
+        joined.Should().NotContain("leaderboard");
+        joined.Should().NotContain("popular");
     }
 }

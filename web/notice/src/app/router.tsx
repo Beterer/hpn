@@ -10,6 +10,14 @@ export const router = createBrowserRouter([
     element: <Home />,
   },
   {
+    path: '/received',
+    element: <Home />,
+  },
+  {
+    path: '/profile',
+    element: <Home />,
+  },
+  {
     path: '/auth/verify',
     element: <VerifyPage />,
   },

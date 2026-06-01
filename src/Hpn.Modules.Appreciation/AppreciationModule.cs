@@ -1,5 +1,6 @@
 using Hpn.Modules.Appreciation.Internal;
 using Hpn.Modules.Appreciation.Internal.Features.GetAppreciationCategories;
+using Hpn.Modules.Appreciation.Internal.Features.GetReceivedAppreciation;
 using Hpn.Modules.Appreciation.Internal.Features.SubmitAppreciation;
 using Hpn.Modules.Appreciation.Internal.Persistence;
 using Hpn.Modules.Appreciation.Contracts;
@@ -31,6 +32,7 @@ public static class AppreciationModule
         services.AddScoped<IAppreciationApi, AppreciationApi>();
         services.AddScoped<IDomainEventHandler<AppreciationCreated>, AppreciationCounterProjectionHandler>();
         services.AddScoped<GetAppreciationCategoriesHandler>();
+        services.AddScoped<GetReceivedAppreciationHandler>();
         services.AddScoped<SubmitAppreciationHandler>();
         services.TryAddSingleton(TimeProvider.System);
 
@@ -44,6 +46,7 @@ public static class AppreciationModule
     public static IEndpointRouteBuilder MapAppreciationEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGetAppreciationCategories();
+        endpoints.MapGetReceivedAppreciation();
         endpoints.MapSubmitAppreciation();
 
         return endpoints;
