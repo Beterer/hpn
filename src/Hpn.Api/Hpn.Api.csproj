@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <!-- WebApplicationFactory in integration tests needs the generated Program class. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Emit the OpenAPI document at build time so the frontend client can be
+         generated in CI without a running server. Output: openapi/v1.json. -->
+    <OpenApiGenerateDocumentsOnBuild>true</OpenApiGenerateDocumentsOnBuild>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/openapi</OpenApiDocumentsDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hpn.SharedKernel\Hpn.SharedKernel.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Identity\Hpn.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Profile\Hpn.Modules.Profile.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Photo\Hpn.Modules.Photo.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Appreciation\Hpn.Modules.Appreciation.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Feed\Hpn.Modules.Feed.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.SocialFingerprint\Hpn.Modules.SocialFingerprint.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Moderation\Hpn.Modules.Moderation.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Admin\Hpn.Modules.Admin.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+  </ItemGroup>
+
+</Project>

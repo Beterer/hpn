@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (build + unit + architecture + integration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore HPN.sln
+
+      - name: Build (warnings as errors)
+        run: dotnet build HPN.sln -c Release --no-restore
+
+      # Testcontainers spins up real Postgres on the runner's Docker daemon.
+      - name: Test (unit + architecture + integration)
+        run: dotnet test HPN.sln -c Release --no-build --verbosity normal
+
+      - name: Vulnerable package scan
+        run: dotnet list HPN.sln package --vulnerable --include-transitive || true
+
+  frontend:
+    name: Frontend (client gen + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/notice/package-lock.json
+
+      # Emits openapi/Hpn.Api.json so the client can be generated without a server.
+      - name: Emit OpenAPI document
+        run: dotnet build src/Hpn.Api/Hpn.Api.csproj -c Release
+
+      - name: Install dependencies
+        working-directory: web/notice
+        run: npm ci
+
+      - name: Generate API client
+        working-directory: web/notice
+        run: npm run generate:api
+
+      - name: Build
+        working-directory: web/notice
+        run: npm run build
+
+      - name: Dependency audit
+        working-directory: web/notice
+        run: npm audit --omit=dev || true
