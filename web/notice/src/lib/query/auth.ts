@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMe, logout, type Me } from '../api/auth'
+import { profileKeys } from './profile'
 
 export const authKeys = {
   me: ['me'] as const,
@@ -24,6 +25,7 @@ export function useLogout() {
     mutationFn: logout,
     onSuccess: () => {
       queryClient.setQueryData(authKeys.me, null)
+      queryClient.removeQueries({ queryKey: profileKeys.mine })
     },
   })
 }

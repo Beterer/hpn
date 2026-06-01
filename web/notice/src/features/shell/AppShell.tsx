@@ -1,5 +1,8 @@
 import type { Me } from '../../lib/api/auth'
 import { useLogout } from '../../lib/query/auth'
+import { useMyProfile } from '../../lib/query/profile'
+import { OnboardingFlow } from '../profile/OnboardingFlow'
+import { ProfileEditor } from '../profile/ProfileEditor'
 
 /**
  * Minimal authenticated shell for M1 — enough to prove a held session. The real
@@ -8,30 +11,44 @@ import { useLogout } from '../../lib/query/auth'
  */
 export function AppShell({ me }: { me: Me }) {
   const logout = useLogout()
+  const profile = useMyProfile()
+
+  const currentProfile = profile.data ?? null
+  const showOnboarding = !currentProfile || currentProfile.status === 'draft'
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-        <span className="text-sm font-semibold uppercase tracking-widest text-slate-400">Notice</span>
+    <div className="flex min-h-full flex-col bg-stone-50">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
+        <span className="text-sm font-semibold uppercase tracking-widest text-teal-700">Notice</span>
         <button
           type="button"
           onClick={() => logout.mutate()}
           disabled={logout.isPending}
-          className="text-sm font-medium text-slate-600 hover:text-slate-900 disabled:opacity-60"
+          className="text-sm font-medium text-zinc-600 hover:text-zinc-950 disabled:opacity-60"
         >
           {logout.isPending ? 'Signing out…' : 'Sign out'}
         </button>
       </header>
 
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-4 px-6 py-16">
-        <h1 className="text-3xl font-semibold text-slate-900">You’re signed in</h1>
-        <p className="text-slate-600">
-          Signed in as <span className="font-medium text-slate-900">{me.user.email}</span>.
-        </p>
-        <p className="text-slate-500">
-          Next, you’ll set up your profile so people can begin to notice what’s genuine about you.
-        </p>
-      </main>
+      {profile.isLoading && (
+        <main className="flex flex-1 items-center justify-center">
+          <p className="text-zinc-500">Loading…</p>
+        </main>
+      )}
+
+      {profile.isError && (
+        <main className="flex flex-1 items-center justify-center px-6">
+          <p className="text-rose-700">Your profile could not be loaded.</p>
+        </main>
+      )}
+
+      {!profile.isLoading && !profile.isError && showOnboarding && (
+        <OnboardingFlow me={me} profile={currentProfile} />
+      )}
+
+      {!profile.isLoading && !profile.isError && !showOnboarding && currentProfile && (
+        <ProfileEditor profile={currentProfile} />
+      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Hpn.Modules.Profile.Internal.Domain;
 
 namespace Hpn.Modules.Profile.Internal.Persistence;
 
@@ -11,9 +12,17 @@ internal sealed class ProfileDbContext(DbContextOptions<ProfileDbContext> option
 {
     public const string Schema = "profile";
 
+    public DbSet<UserProfile> Profiles => Set<UserProfile>();
+    public DbSet<Interest> Interests => Set<Interest>();
+    public DbSet<ProfileInterest> ProfileInterests => Set<ProfileInterest>();
+    public DbSet<VisibilityPreferences> VisibilityPreferences => Set<VisibilityPreferences>();
+    public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ProfileDbContext).Assembly);
+
         base.OnModelCreating(modelBuilder);
     }
 }
