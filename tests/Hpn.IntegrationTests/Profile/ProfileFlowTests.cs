@@ -4,6 +4,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Hpn.IntegrationTests.Identity;
 using Hpn.Modules.Identity.Internal.Email;
+using Hpn.Modules.Profile.Contracts;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -34,7 +35,9 @@ public sealed class ProfileFlowTests : IAsyncLifetime
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IEmailSender>();
+                services.RemoveAll<IProfileActivationRequirement>();
                 services.AddSingleton<IEmailSender>(_emails);
+                services.AddSingleton<IProfileActivationRequirement, AlwaysSatisfiedActivationRequirement>();
             });
         });
     }
@@ -201,5 +204,13 @@ public sealed class ProfileFlowTests : IAsyncLifetime
 
         var header = cookies.FirstOrDefault(c => c.StartsWith("hpn_session=", StringComparison.Ordinal));
         return header?.Split(';', 2)[0];
+    }
+
+    private sealed class AlwaysSatisfiedActivationRequirement : IProfileActivationRequirement
+    {
+        public Task<ProfileActivationRequirementResult> CheckAsync(
+            Guid profileId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ProfileActivationRequirementResult.Pass);
     }
 }

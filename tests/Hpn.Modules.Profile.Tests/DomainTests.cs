@@ -24,6 +24,7 @@ public sealed class DomainTests
         profile.SelfDescribeText.Should().Be("genderqueer");
         profile.CountryCode.Should().Be("RO");
         profile.Bio.Should().Be("Notices ordinary kindness.");
+        profile.Verified.Should().BeFalse();
         profile.Status.Should().Be(ProfileStatus.Draft);
         profile.VisibilityPreferences.ShowOnlyOutsideCountry.Should().BeFalse();
         profile.VisibilityPreferences.HideFromCountry.Should().BeFalse();

@@ -12,6 +12,13 @@ namespace Hpn.Modules.Profile.Internal;
 /// </summary>
 internal sealed class ProfileApi(ProfileDbContext dbContext) : IProfileApi
 {
+    public async Task<Guid?> GetProfileIdForUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        await dbContext.Profiles
+            .AsNoTracking()
+            .Where(p => p.UserId == userId)
+            .Select(p => (Guid?)p.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task<PublicProfileDto?> GetPublicProfileAsync(
         Guid profileId,
         Guid viewerId,
@@ -33,6 +40,7 @@ internal sealed class ProfileApi(ProfileDbContext dbContext) : IProfileApi
                 p.SelfDescribeText,
                 p.CountryCode,
                 p.Bio,
+                p.Verified,
                 p.ProfileInterests
                     .OrderBy(pi => pi.Interest.Label)
                     .Select(pi => new PublicInterestDto(pi.Interest.Id, pi.Interest.Slug, pi.Interest.Label))

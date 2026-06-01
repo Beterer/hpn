@@ -21,6 +21,7 @@ internal sealed record ProfileResponse(
     string? SelfDescribeText,
     string? CountryCode,
     string? Bio,
+    bool Verified,
     string Status,
     IReadOnlyCollection<InterestResponse> Interests,
     VisibilityPreferencesResponse VisibilityPreferences);
@@ -32,6 +33,7 @@ internal sealed record PublicProfileResponse(
     string? SelfDescribeText,
     string? CountryCode,
     string? Bio,
+    bool Verified,
     IReadOnlyCollection<InterestResponse> Interests);
 
 internal static class ProfileResponses
@@ -57,6 +59,7 @@ internal static class ProfileResponses
         profile.SelfDescribeText,
         profile.CountryCode,
         profile.Bio,
+        profile.Verified,
         profile.Status.ToStorageValue(),
         ToInterests(profile),
         new VisibilityPreferencesResponse(
@@ -74,6 +77,7 @@ internal static class ProfileResponses
         profile.SelfDescribeText,
         profile.CountryCode,
         profile.Bio,
+        profile.Verified,
         ToInterests(profile));
 
     private static IReadOnlyCollection<InterestResponse> ToInterests(UserProfile profile) =>

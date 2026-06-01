@@ -34,6 +34,15 @@ internal static class UpdateProfileStatusEndpoint
                         type: "https://hpn.dev/problems/invalid-profile-status-transition");
                 }
 
+                if (result.FailedRequirement is { } failedRequirement)
+                {
+                    return Results.Problem(
+                        title: failedRequirement.Title,
+                        detail: failedRequirement.Detail,
+                        statusCode: StatusCodes.Status409Conflict,
+                        type: failedRequirement.ProblemType);
+                }
+
                 return Results.Ok(result.Profile);
             })
             .RequireAuthorization()

@@ -11,7 +11,10 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="AWSSDK.S3" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="SixLabors.ImageSharp" />
+    <PackageReference Include="Testcontainers" />
     <PackageReference Include="Testcontainers.PostgreSql" />
   </ItemGroup>
 

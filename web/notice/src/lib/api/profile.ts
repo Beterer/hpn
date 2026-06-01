@@ -10,6 +10,15 @@ async function readJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
 
+async function readError(response: Response, fallback: string): Promise<Error> {
+  try {
+    const body = (await response.json()) as { detail?: string; title?: string }
+    return new Error(body.detail ?? body.title ?? fallback)
+  } catch {
+    return new Error(fallback)
+  }
+}
+
 export async function getMyProfile(): Promise<Profile | null> {
   const response = await apiFetch('/profile/me')
   if (response.status === 404) {
@@ -60,7 +69,7 @@ export async function updateProfileStatus(status: 'active' | 'paused'): Promise<
     body: JSON.stringify({ status } satisfies components['schemas']['UpdateProfileStatusRequest']),
   })
   if (!response.ok) {
-    throw new Error(`Could not update profile status (${response.status}).`)
+    throw await readError(response, `Could not update profile status (${response.status}).`)
   }
   return readJson<Profile>(response)
 }

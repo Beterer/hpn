@@ -8,6 +8,8 @@ namespace Hpn.Modules.Profile.Contracts;
 /// </summary>
 public interface IProfileApi
 {
+    Task<Guid?> GetProfileIdForUserAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task<PublicProfileDto?> GetPublicProfileAsync(
         Guid profileId,
         Guid viewerId,

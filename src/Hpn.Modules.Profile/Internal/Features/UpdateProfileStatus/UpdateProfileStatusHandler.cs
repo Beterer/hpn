@@ -1,4 +1,5 @@
 using Hpn.Modules.Profile.Contracts.Events;
+using Hpn.Modules.Profile.Contracts;
 using Hpn.Modules.Profile.Internal.Features;
 using Hpn.Modules.Profile.Internal.Persistence;
 using Hpn.SharedKernel.Auth;
@@ -10,12 +11,14 @@ namespace Hpn.Modules.Profile.Internal.Features.UpdateProfileStatus;
 internal sealed record UpdateProfileStatusResult(
     ProfileResponse? Profile,
     bool ProfileMissing,
-    bool InvalidTransition);
+    bool InvalidTransition,
+    ProfileActivationRequirementResult? FailedRequirement);
 
 internal sealed class UpdateProfileStatusHandler(
     ProfileDbContext dbContext,
     ICurrentUser currentUser,
     TimeProvider timeProvider,
+    IEnumerable<IProfileActivationRequirement> activationRequirements,
     IDomainEventDispatcher eventDispatcher)
 {
     public async Task<UpdateProfileStatusResult> HandleAsync(
@@ -27,10 +30,30 @@ internal sealed class UpdateProfileStatusHandler(
             .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
         if (profile is null)
         {
-            return new UpdateProfileStatusResult(null, ProfileMissing: true, InvalidTransition: false);
+            return new UpdateProfileStatusResult(
+                null,
+                ProfileMissing: true,
+                InvalidTransition: false,
+                FailedRequirement: null);
         }
 
         var now = timeProvider.GetUtcNow();
+        if (request.Status == "active")
+        {
+            foreach (var requirement in activationRequirements)
+            {
+                var result = await requirement.CheckAsync(profile.Id, cancellationToken);
+                if (!result.Satisfied)
+                {
+                    return new UpdateProfileStatusResult(
+                        null,
+                        ProfileMissing: false,
+                        InvalidTransition: false,
+                        FailedRequirement: result);
+                }
+            }
+        }
+
         var changed = request.Status switch
         {
             "active" => profile.Activate(now),
@@ -40,7 +63,11 @@ internal sealed class UpdateProfileStatusHandler(
 
         if (!changed)
         {
-            return new UpdateProfileStatusResult(null, ProfileMissing: false, InvalidTransition: true);
+            return new UpdateProfileStatusResult(
+                null,
+                ProfileMissing: false,
+                InvalidTransition: true,
+                FailedRequirement: null);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -57,6 +84,10 @@ internal sealed class UpdateProfileStatusHandler(
         var response = await ProfileResponses.LoadMineAsync(dbContext, userId, cancellationToken)
             ?? throw new InvalidOperationException("Profile was saved but could not be reloaded.");
 
-        return new UpdateProfileStatusResult(response, ProfileMissing: false, InvalidTransition: false);
+        return new UpdateProfileStatusResult(
+            response,
+            ProfileMissing: false,
+            InvalidTransition: false,
+            FailedRequirement: null);
     }
 }
