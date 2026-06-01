@@ -18,7 +18,7 @@ function genderLabel(profile: FeedProfile): string {
 /**
  * One feed card (backbone §6.5, §9.4). A calm, single-profile surface — no
  * counts, no scores, and deliberately no skip or dislike affordance. Advancing
- * the feed will require choosing an appreciation; that chooser arrives in M5.
+ * the feed requires choosing an appreciation.
  */
 export function FeedCard({ profile }: { profile: FeedProfile }) {
   const photos = profile.photos ?? []

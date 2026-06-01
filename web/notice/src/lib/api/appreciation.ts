@@ -2,6 +2,7 @@ import type { components } from './generated/schema'
 import { apiFetch } from './client'
 
 export type AppreciationCategory = components['schemas']['AppreciationCategoryDto']
+export type ReceivedAppreciation = components['schemas']['GetReceivedAppreciationResponse']
 export type SubmitAppreciationRequest = components['schemas']['SubmitAppreciationRequest']
 export type SubmitAppreciationResponse = components['schemas']['SubmitAppreciationResponse']
 
@@ -21,6 +22,16 @@ export async function getAppreciationCategories(): Promise<AppreciationCategory[
   }
 
   return (await response.json()) as AppreciationCategory[]
+}
+
+export async function getReceivedAppreciation(includeEvents = true): Promise<ReceivedAppreciation> {
+  const query = includeEvents ? '?includeEvents=true' : ''
+  const response = await apiFetch(`/appreciations/received${query}`)
+  if (!response.ok) {
+    throw await readError(response, `Could not load received appreciation (${response.status}).`)
+  }
+
+  return (await response.json()) as ReceivedAppreciation
 }
 
 export async function submitAppreciation(

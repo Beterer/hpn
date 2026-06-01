@@ -22,7 +22,11 @@ internal sealed class AppreciationEventConfiguration : IEntityTypeConfiguration<
         // rely on it and the Feed read model can treat "appreciated" as terminal.
         builder.HasIndex(e => new { e.SenderUserId, e.ReceiverProfileId, e.CategoryId }).IsUnique();
         builder.HasIndex(e => new { e.SenderUserId, e.IdempotencyKey }).IsUnique();
-        builder.HasIndex(e => e.ReceiverProfileId);
+        // Receiver-scoped reads: the Feed anti-join (receiver equality) and the
+        // received view's recent-events query, which filters by receiver and sorts
+        // newest-first. The composite (receiver, created_at desc) serves the bare
+        // receiver lookup as a prefix and lets the recent-events page avoid a sort.
+        builder.HasIndex(e => new { e.ReceiverProfileId, e.CreatedAt }).IsDescending(false, true);
         builder.HasIndex(e => new { e.SenderUserId, e.CreatedAt });
 
         builder.HasOne<AppreciationCategory>()
