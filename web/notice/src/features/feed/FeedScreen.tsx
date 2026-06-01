@@ -1,10 +1,10 @@
 import { useFeedQueue } from '../../lib/query/feed'
+import { AppreciationChooser } from './AppreciationChooser'
 import { FeedCard } from './FeedCard'
 
 /**
- * The primary appreciation-gated screen (backbone §9.3). M4 ships the card shell
- * consuming the prefetch queue; the appreciation chooser that advances the feed
- * lands in M5. Until then the surface stays calm and never offers a skip (§9.4).
+ * The primary appreciation-gated screen (backbone §9.3). The only way to move
+ * forward is a successful positive appreciation; there is no skip/dislike path.
  */
 export function FeedScreen() {
   const feed = useFeedQueue()
@@ -49,9 +49,7 @@ export function FeedScreen() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-8">
       <FeedCard profile={feed.current} />
-      <p className="text-center text-sm text-zinc-500">
-        Appreciating someone is how you'll move to the next profile — that step arrives soon.
-      </p>
+      <AppreciationChooser key={feed.current.profileId} profile={feed.current} onUnlocked={feed.advance} />
     </main>
   )
 }

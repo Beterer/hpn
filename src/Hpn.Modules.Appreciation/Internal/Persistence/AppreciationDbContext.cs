@@ -12,7 +12,10 @@ internal sealed class AppreciationDbContext(DbContextOptions<AppreciationDbConte
 {
     public const string Schema = "appreciation";
 
+    public DbSet<AppreciationCategory> AppreciationCategories => Set<AppreciationCategory>();
     public DbSet<AppreciationEvent> AppreciationEvents => Set<AppreciationEvent>();
+    public DbSet<ReceivedAppreciationStat> ReceivedAppreciationStats => Set<ReceivedAppreciationStat>();
+    public DbSet<GivenAppreciationStat> GivenAppreciationStats => Set<GivenAppreciationStat>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
