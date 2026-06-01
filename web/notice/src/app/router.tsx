@@ -1,10 +1,16 @@
 import { createBrowserRouter } from 'react-router-dom'
-import { LandingPage } from '../features/landing/LandingPage'
+import { Home } from '../features/home/Home'
+import { VerifyPage } from '../features/auth/VerifyPage'
 
-// The screen map fills in per milestone (backbone §9.3). M0 ships the landing route.
+// The screen map fills in per milestone (backbone §9.3). M1 adds the auth flow:
+// the root branches on session state, and the emailed link lands on /auth/verify.
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <LandingPage />,
+    element: <Home />,
+  },
+  {
+    path: '/auth/verify',
+    element: <VerifyPage />,
   },
 ])

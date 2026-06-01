@@ -7,8 +7,12 @@ using Hpn.Modules.Moderation;
 using Hpn.Modules.Photo;
 using Hpn.Modules.Profile;
 using Hpn.Modules.SocialFingerprint;
+using System.Threading.RateLimiting;
+using Hpn.SharedKernel.Auth;
 using Hpn.SharedKernel.Events;
+using Hpn.SharedKernel.RateLimiting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -37,14 +41,39 @@ try
     services.AddOpenApi();
     services.AddDomainEventDispatcher();
 
+    // We sit behind a TLS-terminating reverse proxy (Caddy, §3.5), so trust its
+    // X-Forwarded-* to recover the real client IP + scheme. Without this, the
+    // per-IP rate limiter and stored request IPs would all see the proxy. The
+    // app is only reachable via that single proxy hop, so we trust one hop and
+    // don't pin a (dynamic, containerized) proxy address.
+    services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+
+    // Shared auth plumbing: the Identity module registers the session scheme;
+    // the host exposes the current principal to every module (backbone §11).
+    services.AddHttpContextAccessor();
+    services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
+    services.AddAuthorization();
+
     services.AddRateLimiter(options =>
     {
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-        options.AddFixedWindowLimiter(RateLimitPolicies.MagicLink, o =>
-        {
-            o.PermitLimit = 5;
-            o.Window = TimeSpan.FromMinutes(15);
-        });
+
+        // Magic-link is partitioned per client IP (tight); per-email volume is
+        // additionally capped inside the handler (backbone §10.6).
+        options.AddPolicy(RateLimitPolicies.MagicLink, httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(15),
+                }));
         options.AddFixedWindowLimiter(RateLimitPolicies.Appreciation, o =>
         {
             o.PermitLimit = 60;
@@ -97,9 +126,16 @@ try
 
     var app = builder.Build();
 
+    // Recover the real client IP/scheme before anything reads them (logging,
+    // rate limiting, cookies).
+    app.UseForwardedHeaders();
     app.UseSerilogRequestLogging();
     app.UseExceptionHandler();
     app.UseStatusCodePages();
+    app.UseAuthentication();
+    app.UseAuthorization();
+    // After auth so per-user policies (appreciation/reports, M5/M9) can partition
+    // on the authenticated identity; the anonymous magic-link policy is unaffected.
     app.UseRateLimiter();
 
     app.MapOpenApi();

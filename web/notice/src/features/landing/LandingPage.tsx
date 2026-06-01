@@ -1,3 +1,5 @@
+import { MagicLinkForm } from '../auth/MagicLinkForm'
+
 export function LandingPage() {
   return (
     <main className="mx-auto flex min-h-full max-w-2xl flex-col justify-center gap-6 px-6 py-16">
@@ -16,6 +18,10 @@ export function LandingPage() {
       <p className="text-base text-slate-500">
         It is not a dating app. There are no scores, rankings, or public counts.
       </p>
+
+      <div className="mt-2 max-w-sm">
+        <MagicLinkForm />
+      </div>
     </main>
   )
 }
