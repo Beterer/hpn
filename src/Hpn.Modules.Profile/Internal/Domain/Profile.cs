@@ -11,6 +11,7 @@ internal sealed class UserProfile
     public string? SelfDescribeText { get; private set; }
     public string? CountryCode { get; private set; }
     public string? Bio { get; private set; }
+    public bool Verified { get; private set; }
     public ProfileStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -42,6 +43,12 @@ internal sealed class UserProfile
         profile.UpdateDetails(displayName, gender, selfDescribeText, countryCode, bio, now);
         profile.VisibilityPreferences = VisibilityPreferences.Create(profile.Id);
         return profile;
+    }
+
+    public void SetVerified(bool verified, DateTimeOffset now)
+    {
+        Verified = verified;
+        UpdatedAt = now;
     }
 
     public void UpdateDetails(

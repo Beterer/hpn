@@ -8,6 +8,7 @@ using Hpn.Modules.Photo;
 using Hpn.Modules.Profile;
 using Hpn.Modules.SocialFingerprint;
 using System.Threading.RateLimiting;
+using Hpn.SharedKernel;
 using Hpn.SharedKernel.Auth;
 using Hpn.SharedKernel.Events;
 using Hpn.SharedKernel.RateLimiting;
@@ -147,7 +148,7 @@ try
         Predicate = registration => registration.Tags.Contains("ready"),
     });
 
-    var api = app.MapGroup("/api/v1");
+    var api = app.MapGroup(ApiRoutes.Prefix);
     api.MapIdentityEndpoints();
     api.MapProfileEndpoints();
     api.MapPhotoEndpoints();

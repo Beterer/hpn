@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { verifyMagicLink } from '../../lib/api/auth'
 import { authKeys } from '../../lib/query/auth'
+import { photoKeys } from '../../lib/query/photos'
 import { profileKeys } from '../../lib/query/profile'
 
 type State = 'verifying' | 'error'
@@ -31,6 +32,7 @@ export function VerifyPage() {
       .then(async () => {
         await queryClient.invalidateQueries({ queryKey: authKeys.me })
         await queryClient.invalidateQueries({ queryKey: profileKeys.mine })
+        await queryClient.invalidateQueries({ queryKey: photoKeys.mine })
         navigate('/', { replace: true })
       })
       .catch(() => setState('error'))

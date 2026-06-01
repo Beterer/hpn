@@ -32,6 +32,10 @@ internal sealed class ProfileConfiguration : IEntityTypeConfiguration<UserProfil
         builder.Property(p => p.Bio)
             .HasMaxLength(500);
 
+        builder.Property(p => p.Verified)
+            .HasDefaultValue(false)
+            .IsRequired();
+
         builder.Property(p => p.Status)
             .HasConversion(v => v.ToStorageValue(), v => ProfileFormat.ParseStatus(v))
             .HasMaxLength(32)

@@ -218,6 +218,12 @@ namespace Hpn.Modules.Profile.Internal.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<bool>("Verified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("verified");
+
                     b.HasKey("Id")
                         .HasName("pk_profiles");
 

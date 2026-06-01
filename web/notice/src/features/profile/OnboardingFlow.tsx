@@ -1,21 +1,32 @@
 import type { Me } from '../../lib/api/auth'
 import type { Profile } from '../../lib/api/profile'
+import { useMyPhotos } from '../../lib/query/photos'
 import { useUpdateProfileStatus } from '../../lib/query/profile'
 import { InterestPicker } from './InterestPicker'
+import { PhotoManager } from './PhotoManager'
 import { ProfileForm } from './ProfileForm'
 
-type Step = 'gender' | 'interests' | 'visibility'
+type Step = 'gender' | 'interests' | 'photos' | 'visibility'
 
 const steps = [
   { id: 'account', label: 'Account' },
   { id: 'gender', label: 'Gender' },
   { id: 'interests', label: 'Interests' },
+  { id: 'photos', label: 'Photos' },
   { id: 'visibility', label: 'Visibility' },
 ]
 
 export function OnboardingFlow({ me, profile }: { me: Me; profile: Profile | null }) {
   const statusMutation = useUpdateProfileStatus()
-  const step: Step = !profile ? 'gender' : profile.interests.length > 0 ? 'visibility' : 'interests'
+  const photos = useMyPhotos(Boolean(profile))
+  const photoCount = photos.data?.length ?? 0
+  const step: Step = !profile
+    ? 'gender'
+    : profile.interests.length === 0
+      ? 'interests'
+      : photos.isLoading || photoCount === 0
+        ? 'photos'
+        : 'visibility'
 
   const activeIndex = steps.findIndex((item) => item.id === step)
 
@@ -105,11 +116,15 @@ export function OnboardingFlow({ me, profile }: { me: Me; profile: Profile | nul
                 <p className="mt-1 text-sm text-zinc-500">Not collected</p>
               </div>
             </div>
-            {statusMutation.isError && <p className="text-sm text-rose-700">Your profile could not be activated.</p>}
+            {statusMutation.isError && (
+              <p className="text-sm text-rose-700">
+                {statusMutation.error.message || 'Your profile could not be activated.'}
+              </p>
+            )}
             <div>
               <button
                 type="button"
-                disabled={!profile || statusMutation.isPending}
+                disabled={!profile || photoCount === 0 || statusMutation.isPending}
                 onClick={() => statusMutation.mutate('active')}
                 className="rounded-lg bg-zinc-950 px-4 py-2 font-medium text-white transition hover:bg-teal-800 disabled:opacity-60"
               >
@@ -118,6 +133,8 @@ export function OnboardingFlow({ me, profile }: { me: Me; profile: Profile | nul
             </div>
           </div>
         )}
+
+        {step === 'photos' && <PhotoManager enabled={Boolean(profile)} />}
       </section>
     </div>
   )
