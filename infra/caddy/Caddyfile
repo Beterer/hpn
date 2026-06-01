@@ -1,0 +1,16 @@
+# Dev reverse proxy. Routes the API and the Vite dev server (both host-run)
+# through a single origin on http://localhost:8080, mirroring the prod topology
+# where Caddy terminates TLS, serves the built PWA, and proxies /api.
+:80 {
+	handle /api/* {
+		reverse_proxy host.docker.internal:5080
+	}
+
+	handle /health* {
+		reverse_proxy host.docker.internal:5080
+	}
+
+	handle {
+		reverse_proxy host.docker.internal:5173
+	}
+}

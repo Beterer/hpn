@@ -1,0 +1,35 @@
+# .NET
+bin/
+obj/
+*.user
+artifacts/
+.vs/
+
+# Rider / VS
+.idea/
+
+# Env & secrets
+.env
+*.env.local
+secrets.json
+
+# Node / frontend
+web/notice/node_modules/
+web/notice/dist/
+web/notice/dev-dist/
+web/notice/.vite/
+
+# Generated API client (regenerated from OpenAPI)
+web/notice/src/lib/api/generated/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test output
+TestResults/
+coverage/
+*.trx
+
+# Build-time OpenAPI document (regenerated)
+src/Hpn.Api/openapi/

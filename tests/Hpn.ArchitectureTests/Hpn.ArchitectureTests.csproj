@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="NetArchTest.Rules" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Hpn.Modules.Identity\Hpn.Modules.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Hpn.Modules.Profile\Hpn.Modules.Profile.csproj" />
+    <ProjectReference Include="..\..\src\Hpn.Modules.Photo\Hpn.Modules.Photo.csproj" />
+    <ProjectReference Include="..\..\src\Hpn.Modules.Appreciation\Hpn.Modules.Appreciation.csproj" />
+    <ProjectReference Include="..\..\src\Hpn.Modules.Feed\Hpn.Modules.Feed.csproj" />
+    <ProjectReference Include="..\..\src\Hpn.Modules.SocialFingerprint\Hpn.Modules.SocialFingerprint.csproj" />
+    <ProjectReference Include="..\..\src\Hpn.Modules.Moderation\Hpn.Modules.Moderation.csproj" />
+    <ProjectReference Include="..\..\src\Hpn.Modules.Admin\Hpn.Modules.Admin.csproj" />
+  </ItemGroup>
+
+</Project>
