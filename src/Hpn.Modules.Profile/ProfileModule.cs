@@ -1,10 +1,19 @@
+using FluentValidation;
+using Hpn.Modules.Profile.Contracts;
 using Hpn.Modules.Profile.Internal;
+using Hpn.Modules.Profile.Internal.Features.GetInterests;
+using Hpn.Modules.Profile.Internal.Features.GetMyProfile;
+using Hpn.Modules.Profile.Internal.Features.GetPublicProfile;
+using Hpn.Modules.Profile.Internal.Features.UpdateProfileInterests;
+using Hpn.Modules.Profile.Internal.Features.UpdateProfileStatus;
+using Hpn.Modules.Profile.Internal.Features.UpsertProfile;
 using Hpn.Modules.Profile.Internal.Persistence;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Hpn.Modules.Profile;
 
@@ -21,13 +30,30 @@ public static class ProfileModule
                    .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IModuleInitializer, ProfileModuleInitializer>();
+        services.AddScoped<IProfileApi, ProfileApi>();
+        services.TryAddSingleton(TimeProvider.System);
+
+        services.AddScoped<UpsertProfileHandler>();
+        services.AddScoped<GetMyProfileHandler>();
+        services.AddScoped<GetPublicProfileHandler>();
+        services.AddScoped<GetInterestsHandler>();
+        services.AddScoped<UpdateProfileInterestsHandler>();
+        services.AddScoped<UpdateProfileStatusHandler>();
+
+        services.AddValidatorsFromAssemblyContaining<UpsertProfileValidator>(ServiceLifetime.Scoped, includeInternalTypes: true);
 
         return services;
     }
 
     public static IEndpointRouteBuilder MapProfileEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        // Vertical-slice endpoints are mapped here per milestone (M1+).
+        endpoints.MapUpsertProfile();
+        endpoints.MapGetMyProfile();
+        endpoints.MapGetPublicProfile();
+        endpoints.MapGetInterests();
+        endpoints.MapUpdateProfileInterests();
+        endpoints.MapUpdateProfileStatus();
+
         return endpoints;
     }
 }
