@@ -157,6 +157,49 @@ public sealed class PhotoFlowTests : IAsyncLifetime
         oversize.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task Public_photo_serving_is_visibility_checked()
+    {
+        var ownerClient = await SignInAsync("public-photo-owner@example.com");
+        var ct = TestContext.Current.CancellationToken;
+
+        _ = await CreateProfileAsync(ownerClient, "Mira", ct);
+        using var uploaded = await UploadPhotoAsync(
+            ownerClient, await CreateJpegAsync(96, 72, includeExif: false, ct), "photo.jpg", ct);
+        var photoId = uploaded.RootElement.GetProperty("id").GetGuid();
+
+        var activated = await ownerClient.PutAsJsonAsync("/api/v1/profile/status", new { status = "active" }, ct);
+        activated.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var viewerClient = await SignInAsync("public-photo-viewer@example.com");
+
+        // Visible profile → a viewer who is not the owner can read display + thumb.
+        var display = await viewerClient.GetAsync($"/api/v1/photos/{photoId}/content?variant=display", ct);
+        display.StatusCode.Should().Be(HttpStatusCode.OK);
+        display.Content.Headers.ContentType!.MediaType.Should().Be("image/webp");
+
+        var thumb = await viewerClient.GetAsync($"/api/v1/photos/{photoId}/content?variant=thumb", ct);
+        thumb.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Unknown variant is a 400; the original is never an option.
+        var badVariant = await viewerClient.GetAsync($"/api/v1/photos/{photoId}/content?variant=original", ct);
+        badVariant.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var missing = await viewerClient.GetAsync($"/api/v1/photos/{Guid.NewGuid()}/content", ct);
+        missing.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        // Pause the owner → the photo is no longer visible to the viewer (404, not 403).
+        var paused = await ownerClient.PutAsJsonAsync("/api/v1/profile/status", new { status = "paused" }, ct);
+        paused.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var afterPause = await viewerClient.GetAsync($"/api/v1/photos/{photoId}/content?variant=display", ct);
+        afterPause.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        // The owner can still read their own paused photo through the owner-scoped path.
+        var ownerOwn = await ownerClient.GetAsync($"/api/v1/profile/photos/{photoId}/content?variant=display", ct);
+        ownerOwn.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     private string MinioUrl => $"http://{_minio.Hostname}:{_minio.GetMappedPublicPort(9000)}";
 
     private AmazonS3Client CreateS3Client() => new(

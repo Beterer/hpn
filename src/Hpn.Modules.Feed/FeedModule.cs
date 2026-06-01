@@ -1,5 +1,8 @@
+using Hpn.Modules.Feed.Contracts;
 using Hpn.Modules.Feed.Internal;
+using Hpn.Modules.Feed.Internal.Features.GetNext;
 using Hpn.Modules.Feed.Internal.Persistence;
+using Hpn.Modules.Feed.Internal.Ranking;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -22,12 +25,21 @@ public static class FeedModule
 
         services.AddScoped<IModuleInitializer, FeedModuleInitializer>();
 
+        // The swap surface (backbone §6.5): replacing the ranking algorithm means
+        // registering a different IFeedRankingStrategy here — eligibility, the
+        // contract, and callers stay put.
+        services.AddScoped<IFeedRankingStrategy, RandomWithinEligibleStrategy>();
+
+        services.AddScoped<GetFeedNextHandler>();
+        services.AddScoped<IFeedApi, FeedApi>();
+
         return services;
     }
 
     public static IEndpointRouteBuilder MapFeedEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        // Vertical-slice endpoints are mapped here per milestone (M1+).
+        endpoints.MapGetFeedNext();
+
         return endpoints;
     }
 }
