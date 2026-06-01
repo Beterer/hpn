@@ -1,12 +1,5 @@
 namespace Hpn.Modules.Appreciation.Internal.Domain;
 
-/// <summary>
-/// One positive, categorized appreciation: a sender notices a quality on a
-/// receiver's profile (backbone §7.5). The full write path — validation,
-/// idempotency, counter/style projections in one transaction — lands in M5.
-/// M4 introduces the table only so the Feed eligibility read model can exclude
-/// already-appreciated profiles (§6.5, §7.6).
-/// </summary>
 internal sealed class AppreciationEvent
 {
     public Guid Id { get; private set; }
@@ -14,6 +7,7 @@ internal sealed class AppreciationEvent
     public Guid ReceiverProfileId { get; private set; }
     public Guid CategoryId { get; private set; }
     public Guid? PhotoId { get; private set; }
+    public string IdempotencyKey { get; private set; } = null!;
     public DateTimeOffset CreatedAt { get; private set; }
 
     private AppreciationEvent()
@@ -25,6 +19,7 @@ internal sealed class AppreciationEvent
         Guid receiverProfileId,
         Guid categoryId,
         Guid? photoId,
+        string idempotencyKey,
         DateTimeOffset now) => new()
     {
         Id = Guid.CreateVersion7(),
@@ -32,6 +27,14 @@ internal sealed class AppreciationEvent
         ReceiverProfileId = receiverProfileId,
         CategoryId = categoryId,
         PhotoId = photoId,
+        IdempotencyKey = NormalizeIdempotencyKey(idempotencyKey),
         CreatedAt = now,
     };
+
+    public bool MatchesRequest(Guid receiverProfileId, Guid categoryId, Guid? photoId) =>
+        ReceiverProfileId == receiverProfileId &&
+        CategoryId == categoryId &&
+        PhotoId == photoId;
+
+    private static string NormalizeIdempotencyKey(string value) => value.Trim();
 }

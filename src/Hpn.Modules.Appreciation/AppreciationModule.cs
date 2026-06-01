@@ -1,10 +1,17 @@
 using Hpn.Modules.Appreciation.Internal;
+using Hpn.Modules.Appreciation.Internal.Features.GetAppreciationCategories;
+using Hpn.Modules.Appreciation.Internal.Features.SubmitAppreciation;
 using Hpn.Modules.Appreciation.Internal.Persistence;
+using Hpn.Modules.Appreciation.Contracts;
+using Hpn.Modules.Appreciation.Contracts.Events;
+using Hpn.SharedKernel.Events;
 using Hpn.SharedKernel.Modules;
+using FluentValidation;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Hpn.Modules.Appreciation;
 
@@ -21,13 +28,24 @@ public static class AppreciationModule
                    .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IModuleInitializer, AppreciationModuleInitializer>();
+        services.AddScoped<IAppreciationApi, AppreciationApi>();
+        services.AddScoped<IDomainEventHandler<AppreciationCreated>, AppreciationCounterProjectionHandler>();
+        services.AddScoped<GetAppreciationCategoriesHandler>();
+        services.AddScoped<SubmitAppreciationHandler>();
+        services.TryAddSingleton(TimeProvider.System);
+
+        services.AddValidatorsFromAssemblyContaining<SubmitAppreciationValidator>(
+            ServiceLifetime.Scoped,
+            includeInternalTypes: true);
 
         return services;
     }
 
     public static IEndpointRouteBuilder MapAppreciationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        // Vertical-slice endpoints are mapped here per milestone (M1+).
+        endpoints.MapGetAppreciationCategories();
+        endpoints.MapSubmitAppreciation();
+
         return endpoints;
     }
 }

@@ -360,14 +360,15 @@ public sealed class FeedFlowTests : IAsyncLifetime
 
     private Task InsertAppreciationAsync(Guid senderUserId, Guid receiverProfileId) => ExecuteAsync(
         "INSERT INTO appreciation.appreciation_events " +
-        "(id, sender_user_id, receiver_profile_id, category_id, created_at) " +
-        "VALUES (@id, @sender, @receiver, @category, now())",
+        "(id, sender_user_id, receiver_profile_id, category_id, idempotency_key, created_at) " +
+        "VALUES (@id, @sender, @receiver, (SELECT id FROM appreciation.appreciation_categories ORDER BY sort_order LIMIT 1), @key, now())",
         p =>
         {
-            p.AddWithValue("id", Guid.NewGuid());
+            var eventId = Guid.NewGuid();
+            p.AddWithValue("id", eventId);
             p.AddWithValue("sender", senderUserId);
             p.AddWithValue("receiver", receiverProfileId);
-            p.AddWithValue("category", Guid.NewGuid());
+            p.AddWithValue("key", $"feed-test-{eventId}");
         });
 
     private Task InsertReadyPhotoAsync(Guid profileId)

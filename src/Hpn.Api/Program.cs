@@ -7,6 +7,7 @@ using Hpn.Modules.Moderation;
 using Hpn.Modules.Photo;
 using Hpn.Modules.Profile;
 using Hpn.Modules.SocialFingerprint;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Hpn.SharedKernel;
 using Hpn.SharedKernel.Auth;
@@ -75,11 +76,19 @@ try
                     PermitLimit = 5,
                     Window = TimeSpan.FromMinutes(15),
                 }));
-        options.AddFixedWindowLimiter(RateLimitPolicies.Appreciation, o =>
-        {
-            o.PermitLimit = 60;
-            o.Window = TimeSpan.FromMinutes(1);
-        });
+        // Appreciation submits are budgeted per authenticated user (backbone §10.6),
+        // not globally — one member must never be able to exhaust everyone's budget.
+        // The limiter runs after authentication, so the principal carries the user id.
+        options.AddPolicy(RateLimitPolicies.Appreciation, httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? "anonymous",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 60,
+                    Window = TimeSpan.FromMinutes(1),
+                }));
         options.AddFixedWindowLimiter(RateLimitPolicies.Reports, o =>
         {
             o.PermitLimit = 10;
