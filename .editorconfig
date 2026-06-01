@@ -17,6 +17,11 @@ dotnet_style_require_accessibility_modifiers = for_non_interface_members:warning
 # Async methods do not require the Async suffix in this codebase.
 dotnet_diagnostic.VSTHRD200.severity = none
 
+# EF Core scaffolds migrations with block-scoped namespaces and its own style;
+# treat them as generated so code-style rules (e.g. IDE0161) don't fail the build.
+[**/Migrations/*.cs]
+generated_code = true
+
 [*.{csproj,props,targets,xml}]
 indent_size = 2
 

@@ -1,7 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    Cross-cutting primitives only (backbone §5.1) — no business logic. The
+    AspNetCore framework reference is here solely for the shared HTTP primitives
+    (endpoint filters, current-user accessor) every module's vertical slices use.
+  -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
   </ItemGroup>
 
 </Project>
