@@ -9,6 +9,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Hpn.Modules.Feed.Tests" />
+    <InternalsVisibleTo Include="Hpn.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>

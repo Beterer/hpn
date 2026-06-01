@@ -1,3 +1,4 @@
+using Hpn.Modules.Appreciation.Internal.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hpn.Modules.Appreciation.Internal.Persistence;
@@ -11,9 +12,13 @@ internal sealed class AppreciationDbContext(DbContextOptions<AppreciationDbConte
 {
     public const string Schema = "appreciation";
 
+    public DbSet<AppreciationEvent> AppreciationEvents => Set<AppreciationEvent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppreciationDbContext).Assembly);
+
         base.OnModelCreating(modelBuilder);
     }
 }
