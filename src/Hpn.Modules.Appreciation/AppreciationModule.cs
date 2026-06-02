@@ -1,5 +1,6 @@
 using Hpn.Modules.Appreciation.Internal;
 using Hpn.Modules.Appreciation.Internal.AccountData;
+using Hpn.Modules.Appreciation.Internal.Development;
 using Hpn.Modules.Appreciation.Internal.Features.GetAppreciationStyle;
 using Hpn.Modules.Appreciation.Internal.Features.GetAppreciationCategories;
 using Hpn.Modules.Appreciation.Internal.Features.GetReceivedAppreciation;
@@ -8,6 +9,7 @@ using Hpn.Modules.Appreciation.Internal.Persistence;
 using Hpn.Modules.Appreciation.Contracts;
 using Hpn.Modules.Appreciation.Contracts.Events;
 using Hpn.SharedKernel.Accounts;
+using Hpn.SharedKernel.Development;
 using Hpn.SharedKernel.Events;
 using Hpn.SharedKernel.Modules;
 using FluentValidation;
@@ -35,6 +37,7 @@ public static class AppreciationModule
         services.AddMemoryCache();
 
         services.AddScoped<IModuleInitializer, AppreciationModuleInitializer>();
+        services.AddScoped<IDevelopmentDataSeeder, AppreciationDevelopmentDataSeeder>();
         services.AddScoped<IAppreciationApi, AppreciationApi>();
         services.AddScoped<IDomainEventHandler<AppreciationCreated>, AppreciationCounterProjectionHandler>();
         services.AddScoped<GetAppreciationCategoriesHandler>();

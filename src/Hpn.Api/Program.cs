@@ -42,6 +42,7 @@ try
     services.AddProblemDetails();
     services.AddOpenApi();
     services.AddDomainEventDispatcher();
+    services.AddDevelopmentSeed(configuration);
 
     // We sit behind a TLS-terminating reverse proxy (Caddy, §3.5), so trust its
     // X-Forwarded-* to recover the real client IP + scheme. Without this, the
@@ -179,6 +180,7 @@ try
     {
         // Migrations auto-apply in dev only; prod runs them as a gated deploy step.
         await app.InitializeModulesAsync();
+        await app.SeedDevelopmentDataAsync();
     }
 
     app.Run();

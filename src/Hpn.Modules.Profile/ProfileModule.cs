@@ -2,6 +2,7 @@ using FluentValidation;
 using Hpn.Modules.Profile.Contracts;
 using Hpn.Modules.Profile.Internal;
 using Hpn.Modules.Profile.Internal.AccountData;
+using Hpn.Modules.Profile.Internal.Development;
 using Hpn.Modules.Profile.Internal.Features.GetInterests;
 using Hpn.Modules.Profile.Internal.Features.GetMyProfile;
 using Hpn.Modules.Profile.Internal.Features.GetPublicProfile;
@@ -14,6 +15,7 @@ using Hpn.Modules.Profile.Internal.Features.UpsertProfile;
 using Hpn.Modules.Profile.Internal.Moderation;
 using Hpn.Modules.Profile.Internal.Persistence;
 using Hpn.SharedKernel.Accounts;
+using Hpn.SharedKernel.Development;
 using Hpn.SharedKernel.Events;
 using Hpn.SharedKernel.Moderation;
 using Hpn.SharedKernel.Modules;
@@ -38,6 +40,8 @@ public static class ProfileModule
                    .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IModuleInitializer, ProfileModuleInitializer>();
+        services.AddScoped<IDevelopmentDataSeeder, ProfileDevelopmentDataSeeder>();
+        services.AddScoped<IDevelopmentDataSeeder, ProfileActivationDevelopmentDataSeeder>();
         services.AddScoped<IProfileApi, ProfileApi>();
         services.TryAddSingleton(TimeProvider.System);
 

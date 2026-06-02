@@ -27,6 +27,7 @@ public sealed class SmokeTests : IAsyncLifetime
         {
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:Postgres", _postgres.GetConnectionString());
+            builder.UseSetting("DevelopmentSeed:Enabled", "false");
         });
     }
 
