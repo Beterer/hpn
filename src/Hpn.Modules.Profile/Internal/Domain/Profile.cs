@@ -134,6 +134,70 @@ internal sealed class UserProfile
         UpdatedAt = now;
     }
 
+    /// <summary>
+    /// A temporary moderation restriction (§6.7, §10.3): the profile leaves the feed
+    /// at once (no longer <c>active</c>) while it sits in the review queue. A deleted
+    /// account stays deleted — moderation never resurrects it. Returns whether the
+    /// status changed.
+    /// </summary>
+    public bool Restrict(DateTimeOffset now)
+    {
+        if (Status is ProfileStatus.Deleted)
+        {
+            return false;
+        }
+
+        Status = ProfileStatus.UnderReview;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>
+    /// A ban (§6.7) — always an admin/system decision, never automatic. The profile
+    /// is removed from the feed permanently until explicitly cleared. A deleted
+    /// account is left untouched.
+    /// </summary>
+    public bool Ban(DateTimeOffset now)
+    {
+        if (Status is ProfileStatus.Deleted)
+        {
+            return false;
+        }
+
+        Status = ProfileStatus.Banned;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>
+    /// Lifts a restriction or ban (§6.7). Only moderation states are reversed here; a
+    /// deleted account is left untouched. A member who had paused themselves before the
+    /// restriction is returned to <c>paused</c>, not forced back into the feed — the
+    /// pause preference (<see cref="VisibilityPreferences.Paused"/>) is untouched by
+    /// restriction, so it still records their intent. Returns whether the status changed.
+    /// </summary>
+    public bool ClearModeration(DateTimeOffset now)
+    {
+        if (Status is not (ProfileStatus.UnderReview or ProfileStatus.Banned))
+        {
+            return false;
+        }
+
+        if (VisibilityPreferences.Paused)
+        {
+            // They were paused before moderation stepped in — honour that, don't resume.
+            Status = ProfileStatus.Paused;
+        }
+        else
+        {
+            Status = ProfileStatus.Active;
+            VisibilityPreferences.Resume();
+        }
+
+        UpdatedAt = now;
+        return true;
+    }
+
     public void ReplaceInterests(IReadOnlyCollection<Interest> interests, DateTimeOffset now)
     {
         _profileInterests.Clear();

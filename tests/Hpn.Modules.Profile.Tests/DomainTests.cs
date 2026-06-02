@@ -110,4 +110,51 @@ public sealed class DomainTests
         // IsVisibleTo requires active status, so a deleted profile is hidden from others.
         profile.IsVisibleTo(Guid.NewGuid(), hasBlockBetweenUsers: false).Should().BeFalse();
     }
+
+    [Fact]
+    public void Restrict_then_clear_returns_an_active_profile_to_the_feed()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        profile.Activate(now);
+
+        profile.Restrict(now.AddMinutes(1)).Should().BeTrue();
+        profile.Status.Should().Be(ProfileStatus.UnderReview);
+        profile.IsVisibleTo(Guid.NewGuid(), hasBlockBetweenUsers: false).Should().BeFalse();
+
+        profile.ClearModeration(now.AddHours(48)).Should().BeTrue();
+        profile.Status.Should().Be(ProfileStatus.Active);
+        profile.IsVisibleTo(Guid.NewGuid(), hasBlockBetweenUsers: false).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Clearing_a_restriction_honours_a_self_pause_set_beforehand()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        profile.Activate(now);
+        profile.Pause(now.AddMinutes(1)); // the member took a break first
+
+        profile.Restrict(now.AddMinutes(2)).Should().BeTrue();
+        profile.Status.Should().Be(ProfileStatus.UnderReview);
+
+        profile.ClearModeration(now.AddHours(48)).Should().BeTrue();
+        // Restored to their own pause, not forced back into the feed.
+        profile.Status.Should().Be(ProfileStatus.Paused);
+        profile.VisibilityPreferences.Paused.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Moderation_never_resurrects_a_deleted_account()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        profile.Activate(now);
+        profile.MarkDeleted(now.AddMinutes(1));
+
+        profile.Restrict(now.AddMinutes(2)).Should().BeFalse();
+        profile.Ban(now.AddMinutes(3)).Should().BeFalse();
+        profile.ClearModeration(now.AddMinutes(4)).Should().BeFalse();
+        profile.Status.Should().Be(ProfileStatus.Deleted);
+    }
 }

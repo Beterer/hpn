@@ -10,6 +10,16 @@ public interface IProfileApi
 {
     Task<Guid?> GetProfileIdForUserAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    /// <summary>Reverse of <see cref="GetProfileIdForUserAsync"/>: the account that owns a
+    /// profile. Moderation needs it to turn a report's <c>target_profile_id</c> into the
+    /// user id its restrictions and trust score are keyed by (§6.7, §10.3).</summary>
+    Task<Guid?> GetUserIdForProfileAsync(Guid profileId, CancellationToken cancellationToken = default);
+
+    /// <summary>Whether a profile carries the admin-set verified flag (§6.3). A trust-score
+    /// input (§10.3), read without the visibility gate that <see cref="GetPublicProfileAsync"/>
+    /// applies.</summary>
+    Task<bool> IsVerifiedAsync(Guid profileId, CancellationToken cancellationToken = default);
+
     Task<PublicProfileDto?> GetPublicProfileAsync(
         Guid profileId,
         Guid viewerId,

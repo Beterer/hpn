@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import type { FeedProfile } from '../../lib/api/feed'
+import { REPORT_TYPES } from '../../lib/api/reports'
+import { useSubmitReport } from '../../lib/query/reports'
 
 const GENDER_LABELS: Record<string, string> = {
   woman: 'Woman',
@@ -81,7 +83,64 @@ export function FeedCard({ profile }: { profile: FeedProfile }) {
             .join(' · ')}
         </p>
         {profile.bio && <p className="mt-1 text-sm leading-6 text-zinc-700">{profile.bio}</p>}
+
+        {profile.profileId && <ReportControl profileId={profile.profileId} />}
       </div>
     </article>
+  )
+}
+
+/**
+ * A quiet, always-reachable way to report a profile (backbone §6.7, §11). Kept
+ * understated so the surface stays appreciation-first (§2); intake is acknowledged,
+ * never scored back to the reporter.
+ */
+function ReportControl({ profileId }: { profileId: string }) {
+  const [open, setOpen] = useState(false)
+  const report = useSubmitReport()
+
+  if (report.isSuccess) {
+    return (
+      <p className="mt-2 text-xs text-zinc-500">Thanks — our team will take a look.</p>
+    )
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 self-start text-xs font-medium text-zinc-400 hover:text-zinc-600"
+      >
+        Report this profile
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-2 rounded-lg border border-zinc-200 bg-stone-50 p-3">
+      <p className="text-xs font-medium text-zinc-700">Why are you reporting this profile?</p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {REPORT_TYPES.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            disabled={report.isPending}
+            onClick={() => report.mutate({ targetProfileId: profileId, type: t.value })}
+            className="rounded-full border border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:border-rose-400 hover:text-rose-700 disabled:opacity-60"
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {report.isError && <p className="mt-2 text-xs text-rose-700">{report.error.message}</p>}
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="mt-2 text-xs font-medium text-zinc-500 hover:text-zinc-800"
+      >
+        Cancel
+      </button>
+    </div>
   )
 }
