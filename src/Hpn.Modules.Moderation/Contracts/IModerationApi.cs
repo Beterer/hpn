@@ -1,10 +1,10 @@
 namespace Hpn.Modules.Moderation.Contracts;
 
 /// <summary>
-/// The read-only surface other modules (notably Admin in M10) may call into
-/// Moderation through (backbone §6.7, §3.3). Reports are filed via the HTTP endpoint,
-/// and restrictions/bans are applied inside the module's own services — writes never
-/// leak onto this contract, consistent with the other modules' read-only APIs.
+/// The surface other modules may call into Moderation through (backbone §6.7,
+/// §3.3). Member reports are filed via the HTTP endpoint; the Admin module uses
+/// the explicit decision method for human moderation actions so it never reaches
+/// into Moderation internals.
 /// </summary>
 public interface IModerationApi
 {
@@ -15,4 +15,20 @@ public interface IModerationApi
     /// <summary>Whether the account is currently excluded by moderation — an active
     /// temporary restriction or a ban that has not been cleared (§10.3).</summary>
     Task<bool> IsRestrictedAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Applies an admin moderation decision to a profile owner. Action is one
+    /// of <c>warn</c>, <c>temp_restrict</c>, <c>ban</c>, <c>clear</c>.</summary>
+    Task<ModerationDecisionDto> ApplyAdminProfileActionAsync(
+        Guid targetProfileId,
+        Guid targetUserId,
+        string action,
+        string reason,
+        Guid adminUserId,
+        CancellationToken cancellationToken = default);
 }
+
+public sealed record ModerationDecisionDto(
+    Guid TargetProfileId,
+    Guid TargetUserId,
+    string Action,
+    DateTimeOffset? ExpiresAt);

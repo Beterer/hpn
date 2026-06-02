@@ -23,6 +23,33 @@ internal sealed class ModerationActionService(
     public static readonly TimeSpan RestrictionWindow = TimeSpan.FromHours(48);
 
     /// <summary>
+    /// Records a warning and resolves the target's outstanding reports as handled. It
+    /// does not change feed eligibility, but it does clear the profile from the review
+    /// queue (which lists open/reviewing reports) — a warning is a decision taken.
+    /// </summary>
+    public async Task WarnAsync(
+        Guid targetUserId,
+        Guid targetProfileId,
+        string reason,
+        string actor,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        dbContext.ModerationActions.Add(ModerationAction.Warn(targetUserId, reason, actor, now));
+
+        var openReports = await dbContext.Reports
+            .Where(r => r.TargetProfileId == targetProfileId &&
+                        (r.Status == ReportStatus.Open || r.Status == ReportStatus.Reviewing))
+            .ToListAsync(cancellationToken);
+        foreach (var report in openReports)
+        {
+            report.MarkActioned(now);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Applies a temporary restriction and enqueues the target's open reports for
     /// review. Always temporary — the account returns automatically when the window
     /// elapses (see <see cref="RestrictionExpiryService"/>).

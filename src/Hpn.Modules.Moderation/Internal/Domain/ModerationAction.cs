@@ -24,6 +24,16 @@ internal sealed class ModerationAction
     {
     }
 
+    public static ModerationAction Warn(Guid targetUserId, string reason, string actor, DateTimeOffset now) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        TargetUserId = targetUserId,
+        Action = ActionType.Warn,
+        Reason = reason,
+        Actor = actor,
+        CreatedAt = now,
+    };
+
     public static ModerationAction TempRestrict(
         Guid targetUserId,
         string reason,

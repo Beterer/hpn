@@ -6,6 +6,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Hpn.SharedKernel\Hpn.SharedKernel.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Identity\Hpn.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Moderation\Hpn.Modules.Moderation.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Profile\Hpn.Modules.Profile.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,6 +19,12 @@
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hpn.Modules.Admin.Tests" />
   </ItemGroup>
 
 </Project>
