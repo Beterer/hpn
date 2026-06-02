@@ -1,3 +1,5 @@
+using Hpn.Modules.Admin.Internal.Domain;
+using Hpn.Modules.Admin.Internal.ReadModel;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hpn.Modules.Admin.Internal.Persistence;
@@ -11,9 +13,16 @@ internal sealed class AdminDbContext(DbContextOptions<AdminDbContext> options) :
 {
     public const string Schema = "admin";
 
+    public DbSet<AdminAuditLog> AdminAuditLog => Set<AdminAuditLog>();
+    public DbSet<AdminQueueItemReadModel> QueueItems => Set<AdminQueueItemReadModel>();
+    public DbSet<AdminReportReadModel> Reports => Set<AdminReportReadModel>();
+    public DbSet<AdminStatsReadModel> Stats => Set<AdminStatsReadModel>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AdminDbContext).Assembly);
+
         base.OnModelCreating(modelBuilder);
     }
 }

@@ -1,3 +1,5 @@
+using Hpn.Modules.Moderation.Contracts;
+
 namespace Hpn.Modules.Moderation.Internal.Trust;
 
 /// <summary>
@@ -7,7 +9,7 @@ namespace Hpn.Modules.Moderation.Internal.Trust;
 /// </summary>
 internal static class TrustScoreCalculator
 {
-    public const double Base = 0.4;
+    public const double Base = ModerationDefaults.BaseTrustScore;
     public const double AgeWeight = 0.2;
     public const int AgeRampDays = 14;
     public const double PhotoWeight = 0.1;
