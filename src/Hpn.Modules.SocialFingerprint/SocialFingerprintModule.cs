@@ -1,10 +1,12 @@
 using Hpn.Modules.SocialFingerprint.Internal;
+using Hpn.Modules.SocialFingerprint.Internal.Features.GetMyFingerprint;
 using Hpn.Modules.SocialFingerprint.Internal.Persistence;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Hpn.Modules.SocialFingerprint;
 
@@ -21,13 +23,15 @@ public static class SocialFingerprintModule
                    .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IModuleInitializer, SocialFingerprintModuleInitializer>();
+        services.AddScoped<GetMyFingerprintHandler>();
+        services.TryAddSingleton(TimeProvider.System);
 
         return services;
     }
 
     public static IEndpointRouteBuilder MapSocialFingerprintEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        // Vertical-slice endpoints are mapped here per milestone (M1+).
+        endpoints.MapGetMyFingerprint();
         return endpoints;
     }
 }

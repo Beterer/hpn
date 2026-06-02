@@ -1,3 +1,4 @@
+using Hpn.Modules.SocialFingerprint.Internal.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hpn.Modules.SocialFingerprint.Internal.Persistence;
@@ -11,9 +12,13 @@ internal sealed class SocialFingerprintDbContext(DbContextOptions<SocialFingerpr
 {
     public const string Schema = "social_fingerprint";
 
+    public DbSet<SocialFingerprintSnapshot> SocialFingerprintSnapshots => Set<SocialFingerprintSnapshot>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(SocialFingerprintDbContext).Assembly);
+
         base.OnModelCreating(modelBuilder);
     }
 }

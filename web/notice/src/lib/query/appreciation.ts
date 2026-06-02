@@ -1,9 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   getAppreciationCategories,
+  getAppreciationStyle,
   getReceivedAppreciation,
   submitAppreciation,
   type AppreciationCategory,
+  type AppreciationStyle,
   type ReceivedAppreciation,
   type SubmitAppreciationRequest,
   type SubmitAppreciationResponse,
@@ -12,6 +14,7 @@ import {
 export const appreciationKeys = {
   categories: ['appreciation-categories'] as const,
   received: (includeEvents: boolean) => ['appreciations', 'received', includeEvents] as const,
+  style: ['appreciations', 'style'] as const,
 }
 
 export function useAppreciationCategories() {
@@ -26,6 +29,14 @@ export function useReceivedAppreciation(includeEvents = true) {
   return useQuery<ReceivedAppreciation>({
     queryKey: appreciationKeys.received(includeEvents),
     queryFn: () => getReceivedAppreciation(includeEvents),
+    staleTime: 60_000,
+  })
+}
+
+export function useAppreciationStyle() {
+  return useQuery<AppreciationStyle>({
+    queryKey: appreciationKeys.style,
+    queryFn: getAppreciationStyle,
     staleTime: 60_000,
   })
 }
