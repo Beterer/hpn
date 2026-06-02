@@ -59,6 +59,7 @@ public sealed class PhotoFlowTests : IAsyncLifetime
         {
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:Postgres", _postgres.GetConnectionString());
+            builder.UseSetting("DevelopmentSeed:Enabled", "false");
             builder.UseSetting("Photo:MaxUploadBytes", "65536");
             builder.UseSetting("Photo:Storage:BucketName", BucketName);
             builder.UseSetting("Photo:Storage:ServiceUrl", MinioUrl);

@@ -4,6 +4,7 @@ using Hpn.Modules.Identity.Internal;
 using Hpn.Modules.Identity.Internal.AccountData;
 using Hpn.Modules.Identity.Internal.Accounts;
 using Hpn.Modules.Identity.Internal.Auth;
+using Hpn.Modules.Identity.Internal.Development;
 using Hpn.Modules.Identity.Internal.Email;
 using Hpn.Modules.Identity.Internal.Features.ExportAccount;
 using Hpn.Modules.Identity.Internal.Features.GetMe;
@@ -13,6 +14,7 @@ using Hpn.Modules.Identity.Internal.Features.RequestMagicLink;
 using Hpn.Modules.Identity.Internal.Features.VerifyMagicLink;
 using Hpn.Modules.Identity.Internal.Persistence;
 using Hpn.SharedKernel.Accounts;
+using Hpn.SharedKernel.Development;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -39,6 +41,7 @@ public static class IdentityModule
                    .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IModuleInitializer, IdentityModuleInitializer>();
+        services.AddScoped<IDevelopmentDataSeeder, IdentityDevelopmentDataSeeder>();
 
         services.Configure<IdentityOptions>(configuration.GetSection(IdentityOptions.SectionName));
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));

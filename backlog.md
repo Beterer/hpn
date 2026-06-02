@@ -1,0 +1,1 @@
+Feature: allow users to appreciate without onboarding

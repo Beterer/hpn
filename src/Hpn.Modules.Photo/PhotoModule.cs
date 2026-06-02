@@ -3,6 +3,7 @@ using FluentValidation;
 using Hpn.Modules.Photo.Contracts;
 using Hpn.Modules.Photo.Internal;
 using Hpn.Modules.Photo.Internal.AccountData;
+using Hpn.Modules.Photo.Internal.Development;
 using Hpn.Modules.Photo.Internal.Features.DeleteProfilePhoto;
 using Hpn.Modules.Photo.Internal.Features.GetMyPhotos;
 using Hpn.Modules.Photo.Internal.Features.GetPhotoContent;
@@ -15,6 +16,7 @@ using Hpn.Modules.Photo.Internal.Persistence;
 using Hpn.Modules.Photo.Internal.Storage;
 using Hpn.Modules.Profile.Contracts;
 using Hpn.SharedKernel.Accounts;
+using Hpn.SharedKernel.Development;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -57,6 +59,7 @@ public static class PhotoModule
         });
 
         services.AddScoped<IModuleInitializer, PhotoModuleInitializer>();
+        services.AddScoped<IDevelopmentDataSeeder, PhotoDevelopmentDataSeeder>();
         services.AddScoped<IPhotoApi, PhotoApi>();
         services.AddScoped<IProfileActivationRequirement, ReadyPhotoActivationRequirement>();
         services.AddScoped<IObjectStore, S3ObjectStore>();

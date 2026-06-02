@@ -32,6 +32,7 @@ public sealed class ProfileFlowTests : IAsyncLifetime
         {
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:Postgres", _postgres.GetConnectionString());
+            builder.UseSetting("DevelopmentSeed:Enabled", "false");
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IEmailSender>();
