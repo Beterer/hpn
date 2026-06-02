@@ -28,12 +28,15 @@ internal sealed class AppreciationApi(AppreciationDbContext dbContext) : IApprec
                 dbContext.AppreciationCategories.AsNoTracking(),
                 stat => stat.CategoryId,
                 category => category.Id,
-                (stat, category) => new AppreciationCategoryCountDto(
+                (stat, category) => new
+                {
                     category.Id,
                     category.Slug,
                     category.Label,
-                    stat.Count))
+                    stat.Count,
+                })
             .OrderBy(c => c.Label)
+            .Select(c => new AppreciationCategoryCountDto(c.Id, c.Slug, c.Label, c.Count))
             .ToArrayAsync(cancellationToken);
 
         return new ReceivedAppreciationSummaryDto(profileId, categories.Sum(c => c.Count), categories);
@@ -50,12 +53,15 @@ internal sealed class AppreciationApi(AppreciationDbContext dbContext) : IApprec
                 dbContext.AppreciationCategories.AsNoTracking(),
                 stat => stat.CategoryId,
                 category => category.Id,
-                (stat, category) => new AppreciationCategoryCountDto(
+                (stat, category) => new
+                {
                     category.Id,
                     category.Slug,
                     category.Label,
-                    stat.Count))
+                    stat.Count,
+                })
             .OrderBy(c => c.Label)
+            .Select(c => new AppreciationCategoryCountDto(c.Id, c.Slug, c.Label, c.Count))
             .ToArrayAsync(cancellationToken);
 
         return new AppreciationStyleDto(userId, categories.Sum(c => c.Count), categories);

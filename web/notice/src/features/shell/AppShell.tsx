@@ -3,21 +3,33 @@ import type { Me } from '../../lib/api/auth'
 import { useLogout } from '../../lib/query/auth'
 import { useMyProfile } from '../../lib/query/profile'
 import { FeedScreen } from '../feed/FeedScreen'
+import { FingerprintView } from '../fingerprint/FingerprintView'
 import { OnboardingFlow } from '../profile/OnboardingFlow'
 import { ProfileEditor } from '../profile/ProfileEditor'
 import { ReceivedView } from '../received/ReceivedView'
+import { AppreciationStyleView } from '../style/AppreciationStyleView'
 
-type Tab = 'feed' | 'received' | 'profile'
+type Tab = 'feed' | 'received' | 'fingerprint' | 'style' | 'profile'
 
 const TAB_PATHS: Record<Tab, string> = {
   feed: '/',
   received: '/received',
+  fingerprint: '/me/fingerprint',
+  style: '/me/style',
   profile: '/profile',
 }
 
 function tabFromPath(pathname: string): Tab {
   if (pathname === '/received') {
     return 'received'
+  }
+
+  if (pathname === '/me/fingerprint') {
+    return 'fingerprint'
+  }
+
+  if (pathname === '/me/style') {
+    return 'style'
   }
 
   if (pathname === '/profile') {
@@ -47,16 +59,22 @@ export function AppShell({ me }: { me: Me }) {
 
   return (
     <div className="flex min-h-full flex-col bg-stone-50">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 sm:px-6">
         <span className="text-sm font-semibold uppercase tracking-widest text-teal-700">Notice</span>
 
         {!showOnboarding && (
-          <nav className="flex items-center gap-1 rounded-lg bg-stone-100 p-1">
+          <nav className="order-3 flex w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-stone-100 p-1 sm:order-none sm:w-auto">
             <TabButton active={tab === 'feed'} onClick={() => showTab('feed')}>
               Feed
             </TabButton>
             <TabButton active={tab === 'received'} onClick={() => showTab('received')}>
               Received
+            </TabButton>
+            <TabButton active={tab === 'fingerprint'} onClick={() => showTab('fingerprint')}>
+              Fingerprint
+            </TabButton>
+            <TabButton active={tab === 'style'} onClick={() => showTab('style')}>
+              Style
             </TabButton>
             <TabButton active={tab === 'profile'} onClick={() => showTab('profile')}>
               Profile
@@ -95,6 +113,10 @@ export function AppShell({ me }: { me: Me }) {
           <FeedScreen />
         ) : tab === 'received' ? (
           <ReceivedView />
+        ) : tab === 'fingerprint' ? (
+          <FingerprintView />
+        ) : tab === 'style' ? (
+          <AppreciationStyleView />
         ) : (
           <ProfileEditor profile={currentProfile} />
         )
@@ -116,7 +138,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md px-3 py-1 text-sm font-medium transition ${
+      className={`shrink-0 rounded-md px-3 py-1 text-sm font-medium transition ${
         active ? 'bg-white text-teal-800 shadow-sm' : 'text-zinc-600 hover:text-zinc-900'
       }`}
     >

@@ -14,6 +14,14 @@ export const router = createBrowserRouter([
     element: <Home />,
   },
   {
+    path: '/me/fingerprint',
+    element: <Home />,
+  },
+  {
+    path: '/me/style',
+    element: <Home />,
+  },
+  {
     path: '/profile',
     element: <Home />,
   },

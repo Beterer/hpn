@@ -2,6 +2,7 @@ import type { components } from './generated/schema'
 import { apiFetch } from './client'
 
 export type AppreciationCategory = components['schemas']['AppreciationCategoryDto']
+export type AppreciationStyle = components['schemas']['GetAppreciationStyleResponse']
 export type ReceivedAppreciation = components['schemas']['GetReceivedAppreciationResponse']
 export type SubmitAppreciationRequest = components['schemas']['SubmitAppreciationRequest']
 export type SubmitAppreciationResponse = components['schemas']['SubmitAppreciationResponse']
@@ -32,6 +33,15 @@ export async function getReceivedAppreciation(includeEvents = true): Promise<Rec
   }
 
   return (await response.json()) as ReceivedAppreciation
+}
+
+export async function getAppreciationStyle(): Promise<AppreciationStyle> {
+  const response = await apiFetch('/appreciation-style/me')
+  if (!response.ok) {
+    throw await readError(response, `Could not load appreciation style (${response.status}).`)
+  }
+
+  return (await response.json()) as AppreciationStyle
 }
 
 export async function submitAppreciation(

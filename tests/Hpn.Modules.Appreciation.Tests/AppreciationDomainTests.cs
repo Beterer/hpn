@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Hpn.Modules.Appreciation.Internal.Domain;
+using Hpn.Modules.Appreciation.Internal.Features.GetAppreciationStyle;
 using Hpn.Modules.Appreciation.Internal.Features.GetReceivedAppreciation;
 using Xunit;
 
@@ -64,5 +65,24 @@ public sealed class AppreciationDomainTests
         joined.Should().NotContain("rank");
         joined.Should().NotContain("leaderboard");
         joined.Should().NotContain("popular");
+    }
+
+    [Fact]
+    public void Appreciation_style_math_and_phrasing_stay_interpretive()
+    {
+        var userShare = AppreciationStyleMath.Share(count: 3, total: 4);
+        var platformShare = AppreciationStyleMath.Share(count: 3, total: 8);
+        var difference = AppreciationStyleMath.Difference(userShare, platformShare);
+
+        userShare.Should().Be(0.75);
+        platformShare.Should().Be(0.375);
+        difference.Should().Be(0.375);
+
+        var insight = AppreciationStylePhrasing.ForCategory("Warm smile", count: 3, difference);
+        insight.Should().Contain("wider Notice pattern");
+        insight.Should().NotContain("score");
+        insight.Should().NotContain("rank");
+        insight.Should().NotContain("leaderboard");
+        insight.Should().NotContain("popular");
     }
 }
