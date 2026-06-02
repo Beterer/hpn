@@ -7,9 +7,10 @@ import { FingerprintView } from '../fingerprint/FingerprintView'
 import { OnboardingFlow } from '../profile/OnboardingFlow'
 import { ProfileEditor } from '../profile/ProfileEditor'
 import { ReceivedView } from '../received/ReceivedView'
+import { SettingsView } from '../settings/SettingsView'
 import { AppreciationStyleView } from '../style/AppreciationStyleView'
 
-type Tab = 'feed' | 'received' | 'fingerprint' | 'style' | 'profile'
+type Tab = 'feed' | 'received' | 'fingerprint' | 'style' | 'profile' | 'settings'
 
 const TAB_PATHS: Record<Tab, string> = {
   feed: '/',
@@ -17,6 +18,7 @@ const TAB_PATHS: Record<Tab, string> = {
   fingerprint: '/me/fingerprint',
   style: '/me/style',
   profile: '/profile',
+  settings: '/settings',
 }
 
 function tabFromPath(pathname: string): Tab {
@@ -34,6 +36,10 @@ function tabFromPath(pathname: string): Tab {
 
   if (pathname === '/profile') {
     return 'profile'
+  }
+
+  if (pathname === '/settings') {
+    return 'settings'
   }
 
   return 'feed'
@@ -79,6 +85,9 @@ export function AppShell({ me }: { me: Me }) {
             <TabButton active={tab === 'profile'} onClick={() => showTab('profile')}>
               Profile
             </TabButton>
+            <TabButton active={tab === 'settings'} onClick={() => showTab('settings')}>
+              Settings
+            </TabButton>
           </nav>
         )}
 
@@ -117,6 +126,8 @@ export function AppShell({ me }: { me: Me }) {
           <FingerprintView />
         ) : tab === 'style' ? (
           <AppreciationStyleView />
+        ) : tab === 'settings' ? (
+          <SettingsView profile={currentProfile} />
         ) : (
           <ProfileEditor profile={currentProfile} />
         )

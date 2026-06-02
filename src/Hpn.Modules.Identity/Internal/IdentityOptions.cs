@@ -14,6 +14,12 @@ internal sealed class IdentityOptions
     /// <summary>Sliding session lifetime (§10.1).</summary>
     public TimeSpan SessionLifetime { get; set; } = TimeSpan.FromDays(30);
 
+    /// <summary>
+    /// Grace window between a deletion request (soft-delete) and the irreversible
+    /// hard purge (§10.5). Tunable; not a blocker.
+    /// </summary>
+    public TimeSpan AccountDeletionGrace { get; set; } = TimeSpan.FromDays(30);
+
     /// <summary>Max magic links issued per email inside one token lifetime window (per-email anti-abuse, §10.6).</summary>
     public int MaxMagicLinksPerEmailPerWindow { get; set; } = 3;
 

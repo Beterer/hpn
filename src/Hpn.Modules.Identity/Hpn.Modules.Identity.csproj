@@ -6,6 +6,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Hpn.SharedKernel\Hpn.SharedKernel.csproj" />
+    <!-- Account export/erasure resolves the user's profile id via Profile's
+         contract (read-only, §10.5). Contracts only — never Profile internals. -->
+    <ProjectReference Include="..\Hpn.Modules.Profile\Hpn.Modules.Profile.csproj" />
   </ItemGroup>
 
   <ItemGroup>

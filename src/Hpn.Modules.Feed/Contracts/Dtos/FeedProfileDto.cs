@@ -14,7 +14,11 @@ public sealed record FeedProfileDto(
     string? CountryCode,
     string? Bio,
     bool Verified,
-    IReadOnlyList<FeedPhotoDto> Photos);
+    IReadOnlyList<FeedPhotoDto> Photos,
+    // Coarse distance band only — never an exact number (§10.4). Null when there is
+    // no usable location to measure. One of: nearby, under_50km, 50_200km,
+    // 200km_plus, different_country.
+    string? DistanceBucket);
 
 public sealed record FeedPhotoDto(
     Guid PhotoId,

@@ -42,15 +42,18 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
 
         // The viewer's own profile drives the audience/country rules below. No
         // profile yet (mid-onboarding) → nothing to browse.
-        var viewer = await dbContext.Profiles
+        var viewerRow = await dbContext.Profiles
             .AsNoTracking()
             .Where(p => p.UserId == viewerUserId)
-            .Select(p => new FeedViewerContext(p.Id, p.UserId, p.Gender, p.CountryCode, p.Verified))
+            .Select(p => new { p.Id, p.UserId, p.Gender, p.CountryCode, p.Verified, p.GeoLat, p.GeoLng })
             .FirstOrDefaultAsync(cancellationToken);
-        if (viewer is null)
+        if (viewerRow is null)
         {
             return [];
         }
+
+        var viewer = new FeedViewerContext(
+            viewerRow.Id, viewerRow.UserId, viewerRow.Gender, viewerRow.CountryCode, viewerRow.Verified);
 
         var viewerPrefs = await dbContext.VisibilityPreferences
             .AsNoTracking()
@@ -63,6 +66,12 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
         var viewerWantsOutsideCountry = viewerPrefs?.ShowOnlyOutsideCountry ?? false;
         var viewerCountry = viewer.CountryCode;
 
+        // Distance filter inputs (§10.4). It only applies when the viewer asked for a
+        // minimum distance *and* has shared a coarse point to measure from.
+        var minDistanceKm = viewerPrefs?.MinDistanceKm;
+        var viewerLat = viewerRow.GeoLat;
+        var viewerLng = viewerRow.GeoLng;
+
         var seen = seenProfileIds.Take(MaxSeen).ToArray();
 
         var eligible = BuildEligibilityQuery(
@@ -73,6 +82,9 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
             viewerWantsVerifiedOnly,
             viewerWantsOutsideCountry,
             viewerCountry,
+            minDistanceKm,
+            viewerLat,
+            viewerLng,
             seen);
 
         var eligibleIds = await eligible
@@ -86,10 +98,11 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
             return [];
         }
 
-        var cards = await dbContext.Profiles
+        var rows = await dbContext.Profiles
             .AsNoTracking()
             .Where(p => selectedIds.Contains(p.Id))
-            .Select(p => new FeedProfileDto(
+            .Select(p => new
+            {
                 p.Id,
                 p.DisplayName,
                 p.Gender,
@@ -97,7 +110,9 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
                 p.CountryCode,
                 p.Bio,
                 p.Verified,
-                dbContext.Photos
+                p.GeoLat,
+                p.GeoLng,
+                Photos = dbContext.Photos
                     .Where(ph => ph.ProfileId == p.Id && ph.Status == "ready")
                     .OrderBy(ph => ph.Position)
                     .Select(ph => new FeedPhotoDto(
@@ -107,8 +122,22 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
                         ph.Height,
                         $"{ApiRoutes.Prefix}/photos/{ph.Id}/content?variant=display",
                         $"{ApiRoutes.Prefix}/photos/{ph.Id}/content?variant=thumb"))
-                    .ToList()))
+                    .ToList(),
+            })
             .ToListAsync(cancellationToken);
+
+        // Coarse distance band is computed in memory from the rounded points; raw
+        // coordinates never leave the server (§10.4).
+        var cards = rows.Select(r => new FeedProfileDto(
+            r.Id,
+            r.DisplayName,
+            r.Gender,
+            r.SelfDescribeText,
+            r.CountryCode,
+            r.Bio,
+            r.Verified,
+            r.Photos,
+            DistanceBuckets.For(viewerLat, viewerLng, r.GeoLat, r.GeoLng, viewerCountry, r.CountryCode)));
 
         // Restore the strategy's chosen order (the DB returned cards unordered).
         var byId = cards.ToDictionary(c => c.ProfileId);
@@ -128,6 +157,9 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
         bool viewerWantsVerifiedOnly,
         bool viewerWantsOutsideCountry,
         string? viewerCountry,
+        int? minDistanceKm,
+        double? viewerLat,
+        double? viewerLng,
         IReadOnlyCollection<Guid> seen)
     {
         var query = dbContext.Profiles
@@ -176,11 +208,28 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
             query = query.Where(c => !dbContext.VisibilityPreferences.Any(v => v.ProfileId == c.Id && v.VerifiedOnly));
         }
 
-        // Country rules (§7.3, §10.4). Distance (min_distance_km) is intentionally
-        // not applied yet: it needs the coarse geopoint, which is captured with
-        // consent in M8 — there is no coordinate to measure against in M4. The
-        // toggle and column already exist, so adding the Haversine predicate later
-        // is a localized change here.
+        // Minimum-distance rule (§10.4): "show me people at least N km away". Only
+        // active when the viewer set a distance *and* shared a coarse point. A
+        // candidate with no point can't be measured, so it's excluded while the
+        // filter is on. Distance is an equirectangular approximation over the
+        // 0.1°-rounded points — accurate enough for the coarse buckets the UI shows,
+        // and (unlike the great-circle acos form) free of NaN on identical points.
+        // All operators translate to Postgres math functions via Npgsql.
+        if (minDistanceKm is int minKm && viewerLat is double vLat && viewerLng is double vLng)
+        {
+            const double earthRadiusKm = 6371.0;
+            const double degToRad = System.Math.PI / 180.0;
+
+            query = query.Where(c =>
+                c.GeoLat != null && c.GeoLng != null &&
+                earthRadiusKm * System.Math.Sqrt(
+                    ((c.GeoLng!.Value - vLng) * degToRad * System.Math.Cos((vLat + c.GeoLat!.Value) / 2.0 * degToRad)) *
+                    ((c.GeoLng!.Value - vLng) * degToRad * System.Math.Cos((vLat + c.GeoLat!.Value) / 2.0 * degToRad)) +
+                    ((c.GeoLat!.Value - vLat) * degToRad) *
+                    ((c.GeoLat!.Value - vLat) * degToRad)) >= minKm);
+        }
+
+        // Country rules (§7.3, §10.4).
         if (viewerWantsOutsideCountry && viewerCountry is not null)
         {
             query = query.Where(c => c.CountryCode != viewerCountry);

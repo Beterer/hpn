@@ -621,6 +621,7 @@ Build order follows the PRD's priorities, sliced so each milestone is independen
 - **Feed split into stable eligibility + pluggable `IFeedRankingStrategy`** (v1 random) so the algorithm can change radically — priority/boosts, fairness, A/B — without touching eligibility or callers. (§6.5)
 - Licensing is **not** a selection constraint — industry-standard libraries used on merit. (§4.1)
 - MVP answers: Fingerprint gate **≥20**; categories **fixed, config-seeded**; verification **optional**; AI-photo detection **lightweight** (report + trust + review). (Locked Decisions)
+- **Account export & erasure fan out through a shared `IAccountDataContributor`** (in `Hpn.SharedKernel.Accounts`): each module implements one contributor over *its own* schema; an orchestrator in Identity resolves the `AccountScope` once and invokes every contributor, so write isolation holds (no module touches another's tables). Any new module that stores personal data must register a contributor. Soft-delete is announced via the shared `AccountDeletionRequested` event (Profile hides the account from the feed at once). The **hard purge is a gated maintenance step** (`AccountPurgeService.PurgeDueAsync`), not a background worker — same posture as production migrations (§10.5, §12). (§M8)
 
 ### 16.2 Open questions — now resolved (defaults set; tune with data)
 - **Email provider:** Resend for MVP, behind `IEmailSender` (SES later if cost/volume warrants). (§M1)

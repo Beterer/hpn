@@ -1,4 +1,5 @@
 using Hpn.Modules.Appreciation.Internal;
+using Hpn.Modules.Appreciation.Internal.AccountData;
 using Hpn.Modules.Appreciation.Internal.Features.GetAppreciationStyle;
 using Hpn.Modules.Appreciation.Internal.Features.GetAppreciationCategories;
 using Hpn.Modules.Appreciation.Internal.Features.GetReceivedAppreciation;
@@ -6,6 +7,7 @@ using Hpn.Modules.Appreciation.Internal.Features.SubmitAppreciation;
 using Hpn.Modules.Appreciation.Internal.Persistence;
 using Hpn.Modules.Appreciation.Contracts;
 using Hpn.Modules.Appreciation.Contracts.Events;
+using Hpn.SharedKernel.Accounts;
 using Hpn.SharedKernel.Events;
 using Hpn.SharedKernel.Modules;
 using FluentValidation;
@@ -39,6 +41,7 @@ public static class AppreciationModule
         services.AddScoped<GetAppreciationStyleHandler>();
         services.AddScoped<GetReceivedAppreciationHandler>();
         services.AddScoped<SubmitAppreciationHandler>();
+        services.AddScoped<IAccountDataContributor, AppreciationDataContributor>();
         services.TryAddSingleton(TimeProvider.System);
 
         services.AddValidatorsFromAssemblyContaining<SubmitAppreciationValidator>(

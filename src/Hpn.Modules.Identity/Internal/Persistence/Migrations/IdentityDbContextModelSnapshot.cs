@@ -132,6 +132,10 @@ namespace Hpn.Modules.Identity.Internal.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTimeOffset?>("DeletionRequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deletion_requested_at");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("citext")
@@ -140,6 +144,14 @@ namespace Hpn.Modules.Identity.Internal.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastLoginAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_login_at");
+
+                    b.Property<Guid?>("PendingDeletionProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pending_deletion_profile_id");
+
+                    b.Property<DateTimeOffset?>("PurgeAfter")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("purge_after");
 
                     b.Property<string>("Role")
                         .IsRequired()
