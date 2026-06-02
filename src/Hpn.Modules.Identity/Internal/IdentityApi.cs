@@ -15,7 +15,7 @@ internal sealed class IdentityApi(IdentityDbContext dbContext) : IIdentityApi
     public async Task<IdentityUserDto?> GetUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
         await dbContext.Users
             .Where(u => u.Id == userId)
-            .Select(u => new IdentityUserDto(u.Id, u.Email, u.Role.ToString().ToLowerInvariant()))
+            .Select(u => new IdentityUserDto(u.Id, u.Email, u.Role.ToString().ToLowerInvariant(), u.CreatedAt))
             .FirstOrDefaultAsync(cancellationToken);
 
     public Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default) =>

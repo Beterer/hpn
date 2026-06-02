@@ -48,7 +48,7 @@ export function FeedScreen() {
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-8">
-      <FeedCard profile={feed.current} />
+      <FeedCard key={feed.current.profileId} profile={feed.current} />
       <AppreciationChooser key={feed.current.profileId} profile={feed.current} onUnlocked={feed.advance} />
     </main>
   )

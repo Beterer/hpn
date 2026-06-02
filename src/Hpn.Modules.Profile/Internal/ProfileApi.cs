@@ -19,6 +19,18 @@ internal sealed class ProfileApi(ProfileDbContext dbContext) : IProfileApi
             .Select(p => (Guid?)p.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public async Task<Guid?> GetUserIdForProfileAsync(Guid profileId, CancellationToken cancellationToken = default) =>
+        await dbContext.Profiles
+            .AsNoTracking()
+            .Where(p => p.Id == profileId)
+            .Select(p => (Guid?)p.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public Task<bool> IsVerifiedAsync(Guid profileId, CancellationToken cancellationToken = default) =>
+        dbContext.Profiles
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == profileId && p.Verified, cancellationToken);
+
     public async Task<PublicProfileDto?> GetPublicProfileAsync(
         Guid profileId,
         Guid viewerId,

@@ -1,10 +1,16 @@
+using FluentValidation;
+using Hpn.Modules.Moderation.Contracts;
 using Hpn.Modules.Moderation.Internal;
+using Hpn.Modules.Moderation.Internal.Actions;
+using Hpn.Modules.Moderation.Internal.Features.SubmitReport;
 using Hpn.Modules.Moderation.Internal.Persistence;
+using Hpn.Modules.Moderation.Internal.Trust;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Hpn.Modules.Moderation;
 
@@ -21,13 +27,27 @@ public static class ModerationModule
                    .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IModuleInitializer, ModerationModuleInitializer>();
+        services.AddScoped<IModerationApi, ModerationApi>();
+        services.TryAddSingleton(TimeProvider.System);
+
+        // Trust + auto-restriction (§10.3) and the report intake slice.
+        services.AddScoped<TrustScoreService>();
+        services.AddScoped<ReportPressureEvaluator>();
+        services.AddScoped<ModerationActionService>();
+        services.AddScoped<RestrictionExpiryService>();
+        services.AddScoped<SubmitReportHandler>();
+
+        services.AddValidatorsFromAssemblyContaining<SubmitReportValidator>(
+            ServiceLifetime.Scoped,
+            includeInternalTypes: true);
 
         return services;
     }
 
     public static IEndpointRouteBuilder MapModerationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        // Vertical-slice endpoints are mapped here per milestone (M1+).
+        endpoints.MapSubmitReport();
+
         return endpoints;
     }
 }

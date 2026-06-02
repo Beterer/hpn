@@ -89,11 +89,19 @@ try
                     PermitLimit = 60,
                     Window = TimeSpan.FromMinutes(1),
                 }));
-        options.AddFixedWindowLimiter(RateLimitPolicies.Reports, o =>
-        {
-            o.PermitLimit = 10;
-            o.Window = TimeSpan.FromHours(1);
-        });
+        // Reports are budgeted per authenticated reporter (backbone §10.6), so no one
+        // reporter can flood intake while everyone else's budget stays intact. Runs
+        // after authentication, so the principal carries the user id.
+        options.AddPolicy(RateLimitPolicies.Reports, httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? "anonymous",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromHours(1),
+                }));
         options.AddFixedWindowLimiter(RateLimitPolicies.Uploads, o =>
         {
             o.PermitLimit = 20;

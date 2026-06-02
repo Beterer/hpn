@@ -11,9 +11,11 @@ using Hpn.Modules.Profile.Internal.Features.UpdateProfileInterests;
 using Hpn.Modules.Profile.Internal.Features.UpdateProfileStatus;
 using Hpn.Modules.Profile.Internal.Features.UpdateVisibilitySettings;
 using Hpn.Modules.Profile.Internal.Features.UpsertProfile;
+using Hpn.Modules.Profile.Internal.Moderation;
 using Hpn.Modules.Profile.Internal.Persistence;
 using Hpn.SharedKernel.Accounts;
 using Hpn.SharedKernel.Events;
+using Hpn.SharedKernel.Moderation;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +54,12 @@ public static class ProfileModule
         // Account export/erasure slice + soft-delete reaction (backbone §10.5).
         services.AddScoped<IAccountDataContributor, ProfileDataContributor>();
         services.AddScoped<IDomainEventHandler<AccountDeletionRequested>, ProfileAccountDeletionHandler>();
+
+        // Moderation decisions reflect into the profile lifecycle so the feed honours
+        // them (§6.7, §10.3). One handler services all three shared moderation events.
+        services.AddScoped<IDomainEventHandler<UserRestricted>, ProfileModerationStatusHandler>();
+        services.AddScoped<IDomainEventHandler<UserBanned>, ProfileModerationStatusHandler>();
+        services.AddScoped<IDomainEventHandler<UserCleared>, ProfileModerationStatusHandler>();
 
         services.AddValidatorsFromAssemblyContaining<UpsertProfileValidator>(ServiceLifetime.Scoped, includeInternalTypes: true);
 

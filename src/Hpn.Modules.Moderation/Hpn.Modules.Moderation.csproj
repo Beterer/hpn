@@ -6,6 +6,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Hpn.SharedKernel\Hpn.SharedKernel.csproj" />
+    <!-- Trust score + restriction targeting read sanctioned data from these modules
+         via their Contracts only (read-only, §6.7, §10.3) — never their internals. -->
+    <ProjectReference Include="..\Hpn.Modules.Identity\Hpn.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Profile\Hpn.Modules.Profile.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Photo\Hpn.Modules.Photo.csproj" />
+    <ProjectReference Include="..\Hpn.Modules.Appreciation\Hpn.Modules.Appreciation.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,6 +22,13 @@
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hpn.Modules.Moderation.Tests" />
+    <InternalsVisibleTo Include="Hpn.IntegrationTests" />
   </ItemGroup>
 
 </Project>
