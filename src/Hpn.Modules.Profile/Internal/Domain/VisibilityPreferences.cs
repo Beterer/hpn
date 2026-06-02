@@ -28,4 +28,21 @@ internal sealed class VisibilityPreferences
     public void Pause() => Paused = true;
 
     public void Resume() => Paused = false;
+
+    /// <summary>Applies the full set of audience/privacy toggles from settings (§7.3, §8).</summary>
+    public void Update(
+        bool showOnlyOutsideCountry,
+        bool hideFromCountry,
+        int? minDistanceKm,
+        bool womenForWomen,
+        bool verifiedOnly,
+        bool paused)
+    {
+        ShowOnlyOutsideCountry = showOnlyOutsideCountry;
+        HideFromCountry = hideFromCountry;
+        MinDistanceKm = minDistanceKm;
+        WomenForWomen = womenForWomen;
+        VerifiedOnly = verifiedOnly;
+        Paused = paused;
+    }
 }

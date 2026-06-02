@@ -2,6 +2,7 @@ using Amazon.S3;
 using FluentValidation;
 using Hpn.Modules.Photo.Contracts;
 using Hpn.Modules.Photo.Internal;
+using Hpn.Modules.Photo.Internal.AccountData;
 using Hpn.Modules.Photo.Internal.Features.DeleteProfilePhoto;
 using Hpn.Modules.Photo.Internal.Features.GetMyPhotos;
 using Hpn.Modules.Photo.Internal.Features.GetPhotoContent;
@@ -13,6 +14,7 @@ using Hpn.Modules.Photo.Internal.Nsfw;
 using Hpn.Modules.Photo.Internal.Persistence;
 using Hpn.Modules.Photo.Internal.Storage;
 using Hpn.Modules.Profile.Contracts;
+using Hpn.SharedKernel.Accounts;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -69,6 +71,7 @@ public static class PhotoModule
         services.AddScoped<UploadProfilePhotoHandler>();
         services.AddScoped<DeleteProfilePhotoHandler>();
         services.AddScoped<UpdatePhotoOrderHandler>();
+        services.AddScoped<IAccountDataContributor, PhotoDataContributor>();
 
         services.AddValidatorsFromAssemblyContaining<UpdatePhotoOrderValidator>(ServiceLifetime.Scoped, includeInternalTypes: true);
 

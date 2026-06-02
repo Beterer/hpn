@@ -1,13 +1,19 @@
 using FluentValidation;
 using Hpn.Modules.Profile.Contracts;
 using Hpn.Modules.Profile.Internal;
+using Hpn.Modules.Profile.Internal.AccountData;
 using Hpn.Modules.Profile.Internal.Features.GetInterests;
 using Hpn.Modules.Profile.Internal.Features.GetMyProfile;
 using Hpn.Modules.Profile.Internal.Features.GetPublicProfile;
+using Hpn.Modules.Profile.Internal.Features.ManageBlocks;
+using Hpn.Modules.Profile.Internal.Features.UpdateLocation;
 using Hpn.Modules.Profile.Internal.Features.UpdateProfileInterests;
 using Hpn.Modules.Profile.Internal.Features.UpdateProfileStatus;
+using Hpn.Modules.Profile.Internal.Features.UpdateVisibilitySettings;
 using Hpn.Modules.Profile.Internal.Features.UpsertProfile;
 using Hpn.Modules.Profile.Internal.Persistence;
+using Hpn.SharedKernel.Accounts;
+using Hpn.SharedKernel.Events;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +45,13 @@ public static class ProfileModule
         services.AddScoped<GetInterestsHandler>();
         services.AddScoped<UpdateProfileInterestsHandler>();
         services.AddScoped<UpdateProfileStatusHandler>();
+        services.AddScoped<UpdateVisibilitySettingsHandler>();
+        services.AddScoped<UpdateLocationHandler>();
+        services.AddScoped<ManageBlocksHandler>();
+
+        // Account export/erasure slice + soft-delete reaction (backbone §10.5).
+        services.AddScoped<IAccountDataContributor, ProfileDataContributor>();
+        services.AddScoped<IDomainEventHandler<AccountDeletionRequested>, ProfileAccountDeletionHandler>();
 
         services.AddValidatorsFromAssemblyContaining<UpsertProfileValidator>(ServiceLifetime.Scoped, includeInternalTypes: true);
 
@@ -53,6 +66,9 @@ public static class ProfileModule
         endpoints.MapGetInterests();
         endpoints.MapUpdateProfileInterests();
         endpoints.MapUpdateProfileStatus();
+        endpoints.MapUpdateVisibilitySettings();
+        endpoints.MapUpdateLocation();
+        endpoints.MapManageBlocks();
 
         return endpoints;
     }

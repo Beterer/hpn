@@ -199,6 +199,20 @@ namespace Hpn.Modules.Profile.Internal.Persistence.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("gender");
 
+                    b.Property<double?>("GeoLat")
+                        .HasColumnType("double precision")
+                        .HasColumnName("geo_lat");
+
+                    b.Property<double?>("GeoLng")
+                        .HasColumnType("double precision")
+                        .HasColumnName("geo_lng");
+
+                    b.Property<bool>("LocationConsent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("location_consent");
+
                     b.Property<string>("SelfDescribeText")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)")

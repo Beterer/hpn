@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Hpn.Modules.Photo.Tests" />
+    <InternalsVisibleTo Include="Hpn.IntegrationTests" />
   </ItemGroup>
 
 </Project>

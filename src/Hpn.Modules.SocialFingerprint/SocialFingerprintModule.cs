@@ -1,6 +1,8 @@
 using Hpn.Modules.SocialFingerprint.Internal;
+using Hpn.Modules.SocialFingerprint.Internal.AccountData;
 using Hpn.Modules.SocialFingerprint.Internal.Features.GetMyFingerprint;
 using Hpn.Modules.SocialFingerprint.Internal.Persistence;
+using Hpn.SharedKernel.Accounts;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +26,7 @@ public static class SocialFingerprintModule
 
         services.AddScoped<IModuleInitializer, SocialFingerprintModuleInitializer>();
         services.AddScoped<GetMyFingerprintHandler>();
+        services.AddScoped<IAccountDataContributor, SocialFingerprintDataContributor>();
         services.TryAddSingleton(TimeProvider.System);
 
         return services;

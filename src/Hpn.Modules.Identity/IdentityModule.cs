@@ -1,13 +1,18 @@
 using FluentValidation;
 using Hpn.Modules.Identity.Contracts;
 using Hpn.Modules.Identity.Internal;
+using Hpn.Modules.Identity.Internal.AccountData;
+using Hpn.Modules.Identity.Internal.Accounts;
 using Hpn.Modules.Identity.Internal.Auth;
 using Hpn.Modules.Identity.Internal.Email;
+using Hpn.Modules.Identity.Internal.Features.ExportAccount;
 using Hpn.Modules.Identity.Internal.Features.GetMe;
 using Hpn.Modules.Identity.Internal.Features.Logout;
+using Hpn.Modules.Identity.Internal.Features.RequestAccountDeletion;
 using Hpn.Modules.Identity.Internal.Features.RequestMagicLink;
 using Hpn.Modules.Identity.Internal.Features.VerifyMagicLink;
 using Hpn.Modules.Identity.Internal.Persistence;
+using Hpn.SharedKernel.Accounts;
 using Hpn.SharedKernel.Modules;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -46,6 +51,13 @@ public static class IdentityModule
         services.AddScoped<VerifyMagicLinkHandler>();
         services.AddScoped<GetMeHandler>();
         services.AddScoped<LogoutHandler>();
+        services.AddScoped<RequestAccountDeletionHandler>();
+
+        // Account export/erasure (backbone §10.5). The orchestrator fans out to every
+        // module's contributor; Identity registers its own slice + the purge step.
+        services.AddScoped<IAccountDataContributor, IdentityDataContributor>();
+        services.AddScoped<AccountDataOrchestrator>();
+        services.AddScoped<AccountPurgeService>();
 
         services.AddValidatorsFromAssemblyContaining<RequestMagicLinkValidator>(ServiceLifetime.Scoped, includeInternalTypes: true);
 
@@ -66,6 +78,11 @@ public static class IdentityModule
         auth.MapLogout();
 
         endpoints.MapGetMe();
+
+        // Account settings (§8 Settings, §10.5). Mapped here because Identity owns the
+        // account lifecycle and orchestrates the cross-module export/erasure.
+        endpoints.MapRequestAccountDeletion();
+        endpoints.MapExportAccount();
 
         return endpoints;
     }

@@ -5,4 +5,7 @@ internal enum UserStatus
 {
     Active,
     Deactivated,
+
+    /// <summary>Deletion requested; awaiting the grace-window hard purge (§10.5).</summary>
+    PendingDeletion,
 }

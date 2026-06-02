@@ -13,6 +13,13 @@ internal sealed class User
     public UserStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? LastLoginAt { get; private set; }
+    public DateTimeOffset? DeletionRequestedAt { get; private set; }
+    public DateTimeOffset? PurgeAfter { get; private set; }
+    // The account's profile id, captured at soft-delete. The hard purge reads it
+    // from here rather than re-resolving it live, so a retry after a partial purge
+    // (where the profile row may already be gone) can still erase every module's
+    // profile-keyed data (§10.5).
+    public Guid? PendingDeletionProfileId { get; private set; }
 
     private User()
     {
@@ -30,4 +37,17 @@ internal sealed class User
     public bool IsActive => Status == UserStatus.Active;
 
     public void RecordLogin(DateTimeOffset now) => LastLoginAt = now;
+
+    /// <summary>
+    /// Soft-delete (§10.5): the account is marked for deletion and a purge deadline
+    /// is set. Sessions are revoked separately so access stops at once; the rows are
+    /// only erased once <paramref name="now"/> passes <see cref="PurgeAfter"/>.
+    /// </summary>
+    public void RequestDeletion(DateTimeOffset now, TimeSpan graceWindow, Guid? profileId)
+    {
+        Status = UserStatus.PendingDeletion;
+        DeletionRequestedAt = now;
+        PurgeAfter = now + graceWindow;
+        PendingDeletionProfileId = profileId;
+    }
 }

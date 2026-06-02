@@ -32,6 +32,13 @@ internal sealed class ProfileConfiguration : IEntityTypeConfiguration<UserProfil
         builder.Property(p => p.Bio)
             .HasMaxLength(500);
 
+        // Coarse geopoint (§10.4) — stored as two rounded columns, null until consent.
+        builder.Property(p => p.GeoLat);
+        builder.Property(p => p.GeoLng);
+        builder.Property(p => p.LocationConsent)
+            .HasDefaultValue(false)
+            .IsRequired();
+
         builder.Property(p => p.Verified)
             .HasDefaultValue(false)
             .IsRequired();

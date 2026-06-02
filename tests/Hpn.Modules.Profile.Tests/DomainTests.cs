@@ -69,4 +69,45 @@ public sealed class DomainTests
         profile.Status.Should().Be(ProfileStatus.Paused);
         profile.VisibilityPreferences.Paused.Should().BeTrue();
     }
+
+    [Fact]
+    public void Set_location_rounds_to_a_coarse_grid_with_consent()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+
+        profile.SetLocation(44.4267, 26.1025, consent: true, now.AddMinutes(1));
+
+        profile.LocationConsent.Should().BeTrue();
+        profile.GeoLat.Should().Be(44.4);   // rounded to 0.1° (~11 km), never the precise point
+        profile.GeoLng.Should().Be(26.1);
+    }
+
+    [Fact]
+    public void Set_location_without_consent_clears_any_stored_point()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        profile.SetLocation(44.4, 26.1, consent: true, now);
+
+        profile.SetLocation(44.4, 26.1, consent: false, now.AddMinutes(1));
+
+        profile.LocationConsent.Should().BeFalse();
+        profile.GeoLat.Should().BeNull();
+        profile.GeoLng.Should().BeNull();
+    }
+
+    [Fact]
+    public void Mark_deleted_takes_the_profile_out_of_the_feed()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        profile.Activate(now);
+
+        profile.MarkDeleted(now.AddMinutes(1));
+
+        profile.Status.Should().Be(ProfileStatus.Deleted);
+        // IsVisibleTo requires active status, so a deleted profile is hidden from others.
+        profile.IsVisibleTo(Guid.NewGuid(), hasBlockBetweenUsers: false).Should().BeFalse();
+    }
 }

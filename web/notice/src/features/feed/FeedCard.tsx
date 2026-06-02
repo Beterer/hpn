@@ -15,6 +15,19 @@ function genderLabel(profile: FeedProfile): string {
   return GENDER_LABELS[profile.gender ?? ''] ?? ''
 }
 
+// Coarse distance bands only — the API never sends an exact distance (§10.4).
+const DISTANCE_LABELS: Record<string, string> = {
+  nearby: 'Nearby',
+  under_50km: 'Under 50 km',
+  '50_200km': '50–200 km',
+  '200km_plus': '200+ km',
+  different_country: 'Different country',
+}
+
+function distanceLabel(bucket: string | null | undefined): string {
+  return bucket ? (DISTANCE_LABELS[bucket] ?? '') : ''
+}
+
 /**
  * One feed card (backbone §6.5, §9.4). A calm, single-profile surface — no
  * counts, no scores, and deliberately no skip or dislike affordance. Advancing
@@ -63,7 +76,9 @@ export function FeedCard({ profile }: { profile: FeedProfile }) {
           )}
         </div>
         <p className="text-sm text-zinc-500">
-          {[genderLabel(profile), profile.countryCode].filter(Boolean).join(' · ')}
+          {[genderLabel(profile), profile.countryCode, distanceLabel(profile.distanceBucket)]
+            .filter(Boolean)
+            .join(' · ')}
         </p>
         {profile.bio && <p className="mt-1 text-sm leading-6 text-zinc-700">{profile.bio}</p>}
       </div>

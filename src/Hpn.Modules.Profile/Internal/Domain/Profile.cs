@@ -11,6 +11,11 @@ internal sealed class UserProfile
     public string? SelfDescribeText { get; private set; }
     public string? CountryCode { get; private set; }
     public string? Bio { get; private set; }
+    // Coarse location (§10.4): captured only with explicit consent, rounded to
+    // 0.1° (~11 km) so a precise position is never stored. Both null until consent.
+    public double? GeoLat { get; private set; }
+    public double? GeoLng { get; private set; }
+    public bool LocationConsent { get; private set; }
     public bool Verified { get; private set; }
     public ProfileStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -48,6 +53,31 @@ internal sealed class UserProfile
     public void SetVerified(bool verified, DateTimeOffset now)
     {
         Verified = verified;
+        UpdatedAt = now;
+    }
+
+    // ~11 km grid. Anything finer is dropped before it ever reaches the database.
+    private const int CoarseLocationDecimals = 1;
+
+    /// <summary>
+    /// Records (or, on withdrawn consent, clears) the member's coarse location.
+    /// Without consent no coordinate is kept at all (§10.4, §10.5).
+    /// </summary>
+    public void SetLocation(double? latitude, double? longitude, bool consent, DateTimeOffset now)
+    {
+        if (consent && latitude is { } lat && longitude is { } lng)
+        {
+            LocationConsent = true;
+            GeoLat = System.Math.Round(lat, CoarseLocationDecimals);
+            GeoLng = System.Math.Round(lng, CoarseLocationDecimals);
+        }
+        else
+        {
+            LocationConsent = false;
+            GeoLat = null;
+            GeoLng = null;
+        }
+
         UpdatedAt = now;
     }
 
@@ -91,6 +121,17 @@ internal sealed class UserProfile
         VisibilityPreferences.Pause();
         UpdatedAt = now;
         return true;
+    }
+
+    /// <summary>
+    /// Soft-delete: the account asked to be removed. The profile drops out of the
+    /// feed at once (status is no longer active); the rows survive until the grace
+    /// window's hard purge (§10.5).
+    /// </summary>
+    public void MarkDeleted(DateTimeOffset now)
+    {
+        Status = ProfileStatus.Deleted;
+        UpdatedAt = now;
     }
 
     public void ReplaceInterests(IReadOnlyCollection<Interest> interests, DateTimeOffset now)

@@ -15,6 +15,8 @@ internal sealed class FeedProfileRow
     public string? SelfDescribeText { get; init; }
     public string? CountryCode { get; init; }
     public string? Bio { get; init; }
+    public double? GeoLat { get; init; }
+    public double? GeoLng { get; init; }
     public bool Verified { get; init; }
     public string Status { get; init; } = null!;
 }
