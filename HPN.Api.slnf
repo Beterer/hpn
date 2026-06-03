@@ -1,0 +1,17 @@
+{
+  "solution": {
+    "path": "HPN.sln",
+    "projects": [
+      "src/Hpn.Api/Hpn.Api.csproj",
+      "src/Hpn.SharedKernel/Hpn.SharedKernel.csproj",
+      "src/Hpn.Modules.Identity/Hpn.Modules.Identity.csproj",
+      "src/Hpn.Modules.Profile/Hpn.Modules.Profile.csproj",
+      "src/Hpn.Modules.Photo/Hpn.Modules.Photo.csproj",
+      "src/Hpn.Modules.Appreciation/Hpn.Modules.Appreciation.csproj",
+      "src/Hpn.Modules.Feed/Hpn.Modules.Feed.csproj",
+      "src/Hpn.Modules.SocialFingerprint/Hpn.Modules.SocialFingerprint.csproj",
+      "src/Hpn.Modules.Moderation/Hpn.Modules.Moderation.csproj",
+      "src/Hpn.Modules.Admin/Hpn.Modules.Admin.csproj"
+    ]
+  }
+}
