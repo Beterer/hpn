@@ -77,7 +77,6 @@ public sealed class ProfileFlowTests : IAsyncLifetime
             doc.RootElement.GetProperty("countryCode").GetString().Should().Be("RO");
             doc.RootElement.GetProperty("status").GetString().Should().Be("draft");
             var visibility = doc.RootElement.GetProperty("visibilityPreferences");
-            visibility.GetProperty("showOnlyOutsideCountry").GetBoolean().Should().BeFalse();
             visibility.GetProperty("hideFromCountry").GetBoolean().Should().BeFalse();
             visibility.GetProperty("womenForWomen").GetBoolean().Should().BeFalse();
             visibility.GetProperty("verifiedOnly").GetBoolean().Should().BeFalse();

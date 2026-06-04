@@ -11,7 +11,6 @@ internal sealed class VisibilityPreferencesConfiguration : IEntityTypeConfigurat
         builder.ToTable("visibility_preferences");
         builder.HasKey(v => v.ProfileId);
 
-        builder.Property(v => v.ShowOnlyOutsideCountry).HasDefaultValue(false).IsRequired();
         builder.Property(v => v.HideFromCountry).HasDefaultValue(false).IsRequired();
         builder.Property(v => v.WomenForWomen).HasDefaultValue(false).IsRequired();
         builder.Property(v => v.VerifiedOnly).HasDefaultValue(false).IsRequired();

@@ -147,6 +147,11 @@ body {
 .photo-nav:hover { opacity: 0.94; background: rgba(20, 16, 12, 0.34); }
 .photo-nav:active { transform: translateY(-50%) scale(0.94); }
 .photo-nav:disabled { opacity: 0.24; cursor: default; }
+/* Touch devices navigate photos by swiping, so the arrows would only get in
+   the way — keep them for mouse/desktop (fine, hovering pointers) only. */
+@media (hover: none) and (pointer: coarse) {
+  .photo-nav { display: none; }
+}
 
 .card-scrim {
   position: absolute; inset: 0; pointer-events: none;

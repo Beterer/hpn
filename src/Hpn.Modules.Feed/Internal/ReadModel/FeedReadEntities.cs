@@ -24,7 +24,6 @@ internal sealed class FeedProfileRow
 internal sealed class FeedVisibilityRow
 {
     public Guid ProfileId { get; init; }
-    public bool ShowOnlyOutsideCountry { get; init; }
     public bool HideFromCountry { get; init; }
     public int? MinDistanceKm { get; init; }
     public bool WomenForWomen { get; init; }

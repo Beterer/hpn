@@ -63,7 +63,6 @@ function YouMain({ profile, onOpen }: { profile: Profile; onOpen: (s: Sub) => vo
     paused: prefs.paused,
     womenForWomen: prefs.womenForWomen,
     hideFromCountry: prefs.hideFromCountry,
-    showOnlyOutsideCountry: prefs.showOnlyOutsideCountry,
     verifiedOnly: prefs.verifiedOnly,
   })
 
@@ -74,7 +73,6 @@ function YouMain({ profile, onOpen }: { profile: Profile; onOpen: (s: Sub) => vo
       paused: next.paused,
       womenForWomen: next.womenForWomen,
       hideFromCountry: next.hideFromCountry,
-      showOnlyOutsideCountry: next.showOnlyOutsideCountry,
       verifiedOnly: next.verifiedOnly,
       hiddenFromGuests: prefs.hiddenFromGuests,
       minDistanceKm: prefs.minDistanceKm == null ? null : Number(prefs.minDistanceKm),
@@ -99,7 +97,6 @@ function YouMain({ profile, onOpen }: { profile: Profile; onOpen: (s: Sub) => vo
             <Toggle label="Women appreciating women only" on={vis.womenForWomen} onToggle={() => save({ womenForWomen: !vis.womenForWomen })} />
           )}
           <Toggle label="Hide me from people in my own country" on={vis.hideFromCountry} onToggle={() => save({ hideFromCountry: !vis.hideFromCountry })} />
-          <Toggle label="Only show me people outside my country" on={vis.showOnlyOutsideCountry} onToggle={() => save({ showOnlyOutsideCountry: !vis.showOnlyOutsideCountry })} />
           <Toggle label="Only connect with verified people" on={vis.verifiedOnly} onToggle={() => save({ verifiedOnly: !vis.verifiedOnly })} />
         </div>
         <p className="priv-note">Location stays coarse — rounded to roughly 11 km, broad distance bands only. Never your exact spot.</p>

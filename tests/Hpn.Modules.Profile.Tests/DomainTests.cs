@@ -26,7 +26,6 @@ public sealed class DomainTests
         profile.Bio.Should().Be("Notices ordinary kindness.");
         profile.Verified.Should().BeFalse();
         profile.Status.Should().Be(ProfileStatus.Draft);
-        profile.VisibilityPreferences.ShowOnlyOutsideCountry.Should().BeFalse();
         profile.VisibilityPreferences.HideFromCountry.Should().BeFalse();
         profile.VisibilityPreferences.WomenForWomen.Should().BeFalse();
         profile.VisibilityPreferences.VerifiedOnly.Should().BeFalse();

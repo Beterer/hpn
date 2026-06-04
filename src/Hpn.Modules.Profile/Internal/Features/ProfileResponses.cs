@@ -7,7 +7,6 @@ namespace Hpn.Modules.Profile.Internal.Features;
 internal sealed record InterestResponse(Guid Id, string Slug, string Label);
 
 internal sealed record VisibilityPreferencesResponse(
-    bool ShowOnlyOutsideCountry,
     bool HideFromCountry,
     int? MinDistanceKm,
     bool WomenForWomen,
@@ -64,7 +63,6 @@ internal static class ProfileResponses
         profile.Status.ToStorageValue(),
         ToInterests(profile),
         new VisibilityPreferencesResponse(
-            profile.VisibilityPreferences.ShowOnlyOutsideCountry,
             profile.VisibilityPreferences.HideFromCountry,
             profile.VisibilityPreferences.MinDistanceKm,
             profile.VisibilityPreferences.WomenForWomen,

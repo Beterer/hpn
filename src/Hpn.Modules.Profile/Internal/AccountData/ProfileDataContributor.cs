@@ -57,7 +57,6 @@ internal sealed class ProfileDataContributor(ProfileDbContext dbContext) : IAcco
             Interests = profile.ProfileInterests.Select(pi => pi.Interest.Slug).OrderBy(s => s).ToArray(),
             Visibility = new
             {
-                prefs.ShowOnlyOutsideCountry,
                 prefs.HideFromCountry,
                 prefs.MinDistanceKm,
                 prefs.WomenForWomen,
