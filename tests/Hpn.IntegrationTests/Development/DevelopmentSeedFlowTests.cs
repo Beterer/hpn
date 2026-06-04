@@ -55,6 +55,10 @@ public sealed class DevelopmentSeedFlowTests : IAsyncLifetime
         cards.Select(c => c.GetProperty("displayName").GetString()).Should().NotContain("Test Notice");
         cards.Should().OnlyContain(c => c.GetProperty("interests").GetArrayLength() > 0);
         cards.Should().OnlyContain(c => c.GetProperty("photos").GetArrayLength() > 0);
+        cards.Should().OnlyContain(c => c.GetProperty("photos").GetArrayLength() <= 5);
+        cards.Select(c => c.GetProperty("photos").GetArrayLength())
+            .Distinct()
+            .Should().HaveCountGreaterThan(1);
 
         var firstCard = cards[0];
         var firstPhoto = firstCard.GetProperty("photos").EnumerateArray().First();
@@ -72,7 +76,7 @@ public sealed class DevelopmentSeedFlowTests : IAsyncLifetime
             {
                 receiverProfileId = firstCard.GetProperty("profileId").GetGuid(),
                 traitId,
-                photoId = firstPhoto.GetProperty("photoId").GetGuid(),
+                photoId = (Guid?)null,
             }),
         };
         submit.Headers.Add("Idempotency-Key", "development-seed-flow-submit");
@@ -87,8 +91,23 @@ public sealed class DevelopmentSeedFlowTests : IAsyncLifetime
 
         using (var fingerprint = await GetJsonAsync(client, "/api/v1/fingerprint/me"))
         {
-            fingerprint.RootElement.GetProperty("status").GetString().Should().Be("ready");
-            fingerprint.RootElement.GetProperty("sampleSize").GetInt32().Should().BeGreaterThanOrEqualTo(24);
+            var root = fingerprint.RootElement;
+            root.GetProperty("status").GetString().Should().Be("ready");
+            root.GetProperty("sampleSize").GetInt32().Should().BeGreaterThanOrEqualTo(24);
+
+            var shares = root.GetProperty("distribution")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("share").GetDouble())
+                .ToArray();
+            shares.Should().HaveCount(6);
+            shares.Distinct().Should().HaveCountGreaterThan(1);
+
+            var topTraitShares = root.GetProperty("topTraits")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("share").GetDouble())
+                .ToArray();
+            topTraitShares.Should().NotBeEmpty();
+            topTraitShares.Distinct().Should().HaveCountGreaterThan(1);
         }
 
         using (var style = await GetJsonAsync(client, "/api/v1/appreciation-style/me"))

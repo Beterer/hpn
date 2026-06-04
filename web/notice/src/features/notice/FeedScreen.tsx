@@ -21,6 +21,15 @@ function primaryPhoto(profile: FeedProfile) {
   return photos.find((p) => Number(p.position) === 0) ?? photos[0] ?? null
 }
 
+function photoAt(profile: FeedProfile, index: number) {
+  const photos = [...(profile.photos ?? [])].sort((a, b) => Number(a.position) - Number(b.position))
+  if (photos.length === 0) {
+    return null
+  }
+
+  return photos[Math.min(Math.max(index, 0), photos.length - 1)]
+}
+
 /**
  * The core appreciation loop (ADR-025 redesign): one full-bleed card → appreciate
  * FAB → flattened trait cloud → reward sequence → next. There is no skip/dislike;
@@ -90,7 +99,10 @@ function FeedDeck({
   const [chosen, setChosen] = useState<{ label: string; hue: number } | null>(null)
   const [reported, setReported] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [photoIndex, setPhotoIndex] = useState(0)
   const timers = useRef<number[]>([])
+  const photos = [...(profile.photos ?? [])].sort((a, b) => Number(a.position) - Number(b.position))
+  const photoCount = photos.length
 
   useEffect(() => () => timers.current.forEach((t) => clearTimeout(t)), [])
 
@@ -104,13 +116,12 @@ function FeedDeck({
     setOpen(false)
     setPhase('reacting')
 
-    const photo = primaryPhoto(profile)
     submit.mutate(
       {
         request: {
           receiverProfileId: profile.profileId,
           traitId: trait.id,
-          photoId: photo?.photoId ?? null,
+          photoId: null,
         },
         idempotencyKey: crypto.randomUUID(),
       },
@@ -134,6 +145,14 @@ function FeedDeck({
     }
   }
 
+  const shiftPhoto = (delta: number) => {
+    if (phase !== 'idle' || photoCount <= 1) {
+      return
+    }
+
+    setPhotoIndex((current) => (current + delta + photoCount) % photoCount)
+  }
+
   const interests = profile.interests ?? []
 
   return (
@@ -142,7 +161,7 @@ function FeedDeck({
         {next && (
           <article className="card card-behind" aria-hidden="true">
             <div className="card-photo">
-              <CardPhoto profile={next} />
+              <CardPhoto profile={next} photoIndex={0} />
             </div>
           </article>
         )}
@@ -151,7 +170,35 @@ function FeedDeck({
           className={`card card-front ${phase === 'flying' ? 'is-flying' : ''} ${phase === 'reacting' ? 'is-reacting' : ''}`}
         >
           <div className="card-photo">
-            <CardPhoto profile={profile} />
+            <CardPhoto profile={profile} photoIndex={photoIndex} />
+
+            {photoCount > 1 && (
+              <>
+                <div className="photo-dots" aria-hidden="true">
+                  {photos.map((photo, index) => (
+                    <span key={photo.photoId} className={index === photoIndex ? 'active' : ''} />
+                  ))}
+                </div>
+                <button
+                  className="photo-nav prev"
+                  onClick={() => shiftPhoto(-1)}
+                  disabled={phase !== 'idle'}
+                  title="Previous photo"
+                  aria-label="Previous photo"
+                >
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <button
+                  className="photo-nav next"
+                  onClick={() => shiftPhoto(1)}
+                  disabled={phase !== 'idle'}
+                  title="Next photo"
+                  aria-label="Next photo"
+                >
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+              </>
+            )}
 
             {/* quiet report — second plane (visual only for now; not wired to the API) */}
             <button
@@ -235,8 +282,8 @@ function FeedDeck({
   )
 }
 
-function CardPhoto({ profile }: { profile: FeedProfile }) {
-  const photo = primaryPhoto(profile)
+function CardPhoto({ profile, photoIndex }: { profile: FeedProfile; photoIndex: number }) {
+  const photo = photoAt(profile, photoIndex) ?? primaryPhoto(profile)
   if (photo?.displayUrl) {
     return <img src={photo.displayUrl} alt={`A photo ${profile.displayName ?? ''} shared`} />
   }
