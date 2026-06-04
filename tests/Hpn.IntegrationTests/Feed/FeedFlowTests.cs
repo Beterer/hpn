@@ -171,15 +171,6 @@ public sealed class FeedFlowTests : IAsyncLifetime
         var feed = await GetFeedAsync(viewer.Client);
         feed.Should().Contain(sameCountryOpen.ProfileId);
         feed.Should().NotContain(sameCountryHidden.ProfileId, "this profile hides from same-country viewers");
-
-        // Viewer-side: I only want to see people outside my country.
-        var outsideViewer = await CreateActiveParticipantAsync("outside-viewer@example.com", country: "RO");
-        await SetVisibilityFlagAsync(outsideViewer.ProfileId, "show_only_outside_country", true);
-        var abroad = await CreateActiveParticipantAsync("abroad@example.com", country: "US");
-
-        var outsideFeed = await GetFeedAsync(outsideViewer.Client);
-        outsideFeed.Should().Contain(abroad.ProfileId);
-        outsideFeed.Should().NotContain(sameCountryOpen.ProfileId);
     }
 
     [Fact]
@@ -337,7 +328,7 @@ public sealed class FeedFlowTests : IAsyncLifetime
         // column is from a fixed allow-list below, never user input.
         var allowed = new[]
         {
-            "women_for_women", "verified_only", "hide_from_country", "show_only_outside_country", "paused",
+            "women_for_women", "verified_only", "hide_from_country", "paused",
         };
         column.Should().BeOneOf(allowed);
         return ExecuteAsync(

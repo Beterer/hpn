@@ -488,6 +488,30 @@ compensation for a cold read).
 
 ---
 
+### ADR-026 — One country-visibility control: inbound `hide_from_country` only
+**Status:** Accepted. Narrows the country rules from `ADR`-era M8 settings.
+**Context:** Settings exposed two country toggles that read as duplicates to users but did
+opposite things: `hide_from_country` (**inbound** — remove me from the feed of viewers in my
+own country) and `show_only_outside_country` (**outbound** — hide same-country candidates from
+*my* feed). Having both on the same screen was confusing, and product judged the outbound
+"only show me people abroad" filter to be the weaker, less-requested of the two.
+**Decision:** Drop `show_only_outside_country` entirely — the column (migration
+`RemoveShowOnlyOutsideCountry`), the domain field, the settings request/response DTOs, the
+account-export payload, the feed eligibility filter, and both UI toggles. Keep the **inbound
+privacy** control `hide_from_country`: a candidate who enables it is removed from the feed of
+any viewer whose `country_code` matches theirs (`GetFeedNextHandler` country rule).
+**Rationale:** The retained control is the privacy-protective one (it governs *who can see
+you*), consistent with §2 data-minimization and the "block/hide must always be easy" posture.
+The outbound filter was a convenience knob on the viewer's own feed, recoverable later as a
+feed-ranking signal if asked for, without a stored preference.
+**Consequences:** Existing rows lose the column on migrate (pre-launch, no data concern). The
+feed no longer offers a viewer-side "people abroad only" filter. `BuildEligibilityQuery` loses
+its `viewerWantsOutsideCountry` parameter; the inbound `hide_from_country` rule is unchanged.
+**Alternatives:** Keep both and reword the labels (rejected by product as redundant surface);
+keep only the outbound filter (rejected — it removes the inbound privacy capability).
+
+---
+
 ## Deferred (chosen not to build yet)
 
 These are explicit phase-2+ deferrals — recorded so "why isn't there an X?" has an answer.

@@ -8,6 +8,15 @@ import { flattenTraits, type FlatTrait } from './taxonomy'
 
 type Phase = 'idle' | 'reacting' | 'flying'
 
+// The reward beat (matches the design mock): the glow + confetti hold for
+// REACT_MS so they actually land as a dopamine hit, *then* the card slides away
+// over FLY_MS. These are fixed timings, deliberately decoupled from the network
+// — otherwise an instant localhost response collapses the whole reward into a
+// blink. The CSS keyframes (glow .6s, confetti .9s, float 1s, flyAway .46s) are
+// tuned to this envelope.
+const REACT_MS = 560
+const FLY_MS = 460
+
 function vibrate(ms: number) {
   try {
     navigator.vibrate?.(ms)
@@ -116,6 +125,28 @@ function FeedDeck({
     setOpen(false)
     setPhase('reacting')
 
+    // The card flies only once the reward has had its full visual beat (REACT_MS)
+    // *and* the appreciation is confirmed saved — whichever lands last. Running
+    // the beat on a fixed timer (rather than the network response) is what makes
+    // the glow + confetti read as a reward instead of an instant blink, while
+    // still never advancing past a failed submit.
+    let beatDone = false
+    let saved = false
+    const flyIfReady = () => {
+      if (!beatDone || !saved) {
+        return
+      }
+      setPhase('flying')
+      timers.current.push(window.setTimeout(() => onAdvance(), FLY_MS))
+    }
+
+    timers.current.push(
+      window.setTimeout(() => {
+        beatDone = true
+        flyIfReady()
+      }, REACT_MS),
+    )
+
     submit.mutate(
       {
         request: {
@@ -127,8 +158,8 @@ function FeedDeck({
       },
       {
         onSuccess: () => {
-          setPhase('flying')
-          timers.current.push(window.setTimeout(() => onAdvance(), 460))
+          saved = true
+          flyIfReady()
         },
         onError: (e) => {
           setPhase('idle')
@@ -153,6 +184,34 @@ function FeedDeck({
     setPhotoIndex((current) => (current + delta + photoCount) % photoCount)
   }
 
+  // Mobile gets swipe instead of arrows (the arrows are hidden on coarse
+  // pointers via CSS). A tap won't pass the distance threshold, so the FAB /
+  // report / dots underneath keep working; vertical drags are ignored so the
+  // page can still scroll.
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (phase !== 'idle' || open || photoCount <= 1) {
+      touchStart.current = null
+      return
+    }
+    const t = e.touches[0]
+    touchStart.current = { x: t.clientX, y: t.clientY }
+  }
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current
+    touchStart.current = null
+    if (!start) {
+      return
+    }
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x
+    const dy = t.clientY - start.y
+    if (Math.abs(dx) < 44 || Math.abs(dx) <= Math.abs(dy)) {
+      return
+    }
+    shiftPhoto(dx < 0 ? 1 : -1) // swipe left → next, right → previous
+  }
+
   const interests = profile.interests ?? []
 
   return (
@@ -169,7 +228,7 @@ function FeedDeck({
         <article
           className={`card card-front ${phase === 'flying' ? 'is-flying' : ''} ${phase === 'reacting' ? 'is-reacting' : ''}`}
         >
-          <div className="card-photo">
+          <div className="card-photo" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             <CardPhoto profile={profile} photoIndex={photoIndex} />
 
             {photoCount > 1 && (

@@ -78,7 +78,6 @@ public sealed class SettingsFlowTests : IAsyncLifetime
 
         var visibility = await viewer.Client.PutAsJsonAsync("/api/v1/settings/visibility", new
         {
-            showOnlyOutsideCountry = false,
             hideFromCountry = false,
             minDistanceKm = 100,
             womenForWomen = false,
@@ -124,7 +123,6 @@ public sealed class SettingsFlowTests : IAsyncLifetime
 
         var paused = await target.Client.PutAsJsonAsync("/api/v1/settings/visibility", new
         {
-            showOnlyOutsideCountry = false,
             hideFromCountry = false,
             minDistanceKm = (int?)null,
             womenForWomen = false,
@@ -311,7 +309,6 @@ public sealed class SettingsFlowTests : IAsyncLifetime
     {
         var response = await client.PutAsJsonAsync("/api/v1/settings/visibility", new
         {
-            showOnlyOutsideCountry = false,
             hideFromCountry = false,
             minDistanceKm = (int?)null,
             womenForWomen = false,

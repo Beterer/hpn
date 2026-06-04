@@ -58,7 +58,6 @@ internal sealed class UpdateVisibilitySettingsHandler(
         }
 
         profile.VisibilityPreferences.Update(
-            request.ShowOnlyOutsideCountry,
             request.HideFromCountry,
             request.MinDistanceKm,
             request.WomenForWomen,
@@ -71,7 +70,6 @@ internal sealed class UpdateVisibilitySettingsHandler(
         var prefs = profile.VisibilityPreferences;
         return new UpdateVisibilitySettingsResult(
             new VisibilityPreferencesResponse(
-                prefs.ShowOnlyOutsideCountry,
                 prefs.HideFromCountry,
                 prefs.MinDistanceKm,
                 prefs.WomenForWomen,

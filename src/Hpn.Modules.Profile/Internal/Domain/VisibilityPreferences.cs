@@ -3,7 +3,6 @@ namespace Hpn.Modules.Profile.Internal.Domain;
 internal sealed class VisibilityPreferences
 {
     public Guid ProfileId { get; private set; }
-    public bool ShowOnlyOutsideCountry { get; private set; }
     public bool HideFromCountry { get; private set; }
     public int? MinDistanceKm { get; private set; }
     public bool WomenForWomen { get; private set; }
@@ -18,7 +17,6 @@ internal sealed class VisibilityPreferences
     public static VisibilityPreferences Create(Guid profileId) => new()
     {
         ProfileId = profileId,
-        ShowOnlyOutsideCountry = false,
         HideFromCountry = false,
         MinDistanceKm = null,
         WomenForWomen = false,
@@ -33,7 +31,6 @@ internal sealed class VisibilityPreferences
 
     /// <summary>Applies the full set of audience/privacy toggles from settings (§7.3, §8).</summary>
     public void Update(
-        bool showOnlyOutsideCountry,
         bool hideFromCountry,
         int? minDistanceKm,
         bool womenForWomen,
@@ -41,7 +38,6 @@ internal sealed class VisibilityPreferences
         bool paused,
         bool hiddenFromGuests)
     {
-        ShowOnlyOutsideCountry = showOnlyOutsideCountry;
         HideFromCountry = hideFromCountry;
         MinDistanceKm = minDistanceKm;
         WomenForWomen = womenForWomen;

@@ -98,7 +98,6 @@ internal sealed class ProfileDevelopmentDataSeeder(
         profile.SetVerified(verified, now);
         profile.SetLocation(latitude, longitude, consent: true, now);
         profile.VisibilityPreferences.Update(
-            showOnlyOutsideCountry: false,
             hideFromCountry: false,
             minDistanceKm: null,
             womenForWomen: false,

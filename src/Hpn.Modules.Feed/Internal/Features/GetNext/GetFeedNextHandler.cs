@@ -63,7 +63,6 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
         var viewerIsWoman = viewer.Gender == "woman";
         var viewerWantsWomenOnly = viewerPrefs?.WomenForWomen ?? false;
         var viewerWantsVerifiedOnly = viewerPrefs?.VerifiedOnly ?? false;
-        var viewerWantsOutsideCountry = viewerPrefs?.ShowOnlyOutsideCountry ?? false;
         var viewerCountry = viewer.CountryCode;
 
         // Distance filter inputs (§10.4). It only applies when the viewer asked for a
@@ -81,7 +80,6 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
             viewerIsWoman,
             viewerWantsWomenOnly,
             viewerWantsVerifiedOnly,
-            viewerWantsOutsideCountry,
             viewerCountry,
             minDistanceKm,
             viewerLat,
@@ -174,7 +172,6 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
             viewerIsWoman: false,
             viewerWantsWomenOnly: false,
             viewerWantsVerifiedOnly: false,
-            viewerWantsOutsideCountry: false,
             viewerCountry: null,
             minDistanceKm: null,
             viewerLat: null,
@@ -254,7 +251,6 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
         bool viewerIsWoman,
         bool viewerWantsWomenOnly,
         bool viewerWantsVerifiedOnly,
-        bool viewerWantsOutsideCountry,
         string? viewerCountry,
         int? minDistanceKm,
         double? viewerLat,
@@ -339,12 +335,8 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
                     ((c.GeoLat!.Value - vLat) * degToRad)) >= minKm);
         }
 
-        // Country rules (§7.3, §10.4).
-        if (viewerWantsOutsideCountry && viewerCountry is not null)
-        {
-            query = query.Where(c => c.CountryCode != viewerCountry);
-        }
-
+        // Country rule (§7.3, §10.4): a candidate who hides from their own country
+        // is removed from the feed of any viewer in the same country.
         if (viewerCountry is not null)
         {
             query = query.Where(c => !(

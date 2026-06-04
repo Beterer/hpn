@@ -15,7 +15,6 @@ const GENDERS: { value: string; label: string }[] = [
 type Visibility = {
   womenForWomen: boolean
   hideFromCountry: boolean
-  showOnlyOutsideCountry: boolean
   verifiedOnly: boolean
 }
 
@@ -44,7 +43,6 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
   const [vis, setVis] = useState<Visibility>({
     womenForWomen: profile?.visibilityPreferences?.womenForWomen ?? false,
     hideFromCountry: profile?.visibilityPreferences?.hideFromCountry ?? false,
-    showOnlyOutsideCountry: profile?.visibilityPreferences?.showOnlyOutsideCountry ?? false,
     verifiedOnly: profile?.visibilityPreferences?.verifiedOnly ?? false,
   })
   const [error, setError] = useState<string | null>(null)
@@ -88,7 +86,6 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
       await updateVisibility.mutateAsync({
         womenForWomen: vis.womenForWomen,
         hideFromCountry: vis.hideFromCountry,
-        showOnlyOutsideCountry: vis.showOnlyOutsideCountry,
         verifiedOnly: vis.verifiedOnly,
         paused: false,
         hiddenFromGuests: profile?.visibilityPreferences?.hiddenFromGuests ?? false,
@@ -242,7 +239,6 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
                 <Toggle label="Women appreciating women only" hint="Only women will see and appreciate you." on={vis.womenForWomen} onToggle={() => setVis((v) => ({ ...v, womenForWomen: !v.womenForWomen }))} />
               )}
               <Toggle label="Hide me from people in my own country" on={vis.hideFromCountry} onToggle={() => setVis((v) => ({ ...v, hideFromCountry: !v.hideFromCountry }))} />
-              <Toggle label="Only show me people outside my country" on={vis.showOnlyOutsideCountry} onToggle={() => setVis((v) => ({ ...v, showOnlyOutsideCountry: !v.showOnlyOutsideCountry }))} />
               <Toggle label="Only connect with verified people" on={vis.verifiedOnly} onToggle={() => setVis((v) => ({ ...v, verifiedOnly: !v.verifiedOnly }))} />
             </div>
             <p className="priv-note">Your location is kept coarse — rounded to roughly 11 km, with only broad distance bands. Never your exact spot.</p>
