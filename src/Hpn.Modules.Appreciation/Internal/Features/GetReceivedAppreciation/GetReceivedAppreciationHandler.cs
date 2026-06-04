@@ -17,10 +17,11 @@ internal sealed record GetReceivedAppreciationResult(
 }
 
 // Owner-facing read of received appreciation. Intentionally separate from
-// IAppreciationApi.GetReceivedSummaryAsync (the cross-module contract M7's
+// IAppreciationApi.GetReceivedSummaryAsync (the cross-module contract the
 // fingerprint consumes): this path adds presentation concerns — perception
-// phrasing and recent events — that don't belong in a contract DTO. Keep them
-// distinct rather than collapsing them.
+// phrasing and recent events — and aggregates at the trait level (ADR-025),
+// which the category-keyed projection does not carry. Trait counts are read on
+// demand from the events rather than via a second projection table.
 internal sealed class GetReceivedAppreciationHandler(
     AppreciationDbContext dbContext,
     ICurrentUser currentUser,
@@ -41,34 +42,47 @@ internal sealed class GetReceivedAppreciationHandler(
             return GetReceivedAppreciationResult.MissingProfile();
         }
 
-        var categoryRows = await dbContext.ReceivedAppreciationStats
+        var traitRows = await dbContext.AppreciationEvents
             .AsNoTracking()
-            .Where(s => s.ReceiverProfileId == profileId)
+            .Where(e => e.ReceiverProfileId == profileId)
+            .Join(
+                dbContext.AppreciationTraits.AsNoTracking(),
+                e => e.TraitId,
+                trait => trait.Id,
+                (e, trait) => new { trait.Id, trait.Slug, trait.Label, trait.CategoryId, trait.SortOrder })
             .Join(
                 dbContext.AppreciationCategories.AsNoTracking(),
-                stat => stat.CategoryId,
+                x => x.CategoryId,
                 category => category.Id,
-                (stat, category) => new
+                (x, category) => new
                 {
-                    category.Id,
-                    category.Slug,
-                    category.Label,
-                    category.SortOrder,
-                    stat.Count,
+                    x.Id,
+                    x.Slug,
+                    x.Label,
+                    CategorySlug = category.Slug,
+                    CategoryLabel = category.Label,
+                    category.Hue,
+                    x.SortOrder,
                 })
-            .OrderBy(c => c.SortOrder)
+            .GroupBy(x => new { x.Id, x.Slug, x.Label, x.CategorySlug, x.CategoryLabel, x.Hue, x.SortOrder })
+            .Select(g => new { g.Key, Count = g.Count() })
             .ToArrayAsync(cancellationToken);
 
-        var categories = categoryRows
-            .Select(c => new ReceivedAppreciationCategoryResponse(
-                c.Id,
-                c.Slug,
-                c.Label,
-                c.Count,
-                ReceivedAppreciationPhrasing.ForCategory(c.Slug, c.Label)))
+        var traits = traitRows
+            .OrderByDescending(r => r.Count)
+            .ThenBy(r => r.Key.SortOrder)
+            .Select(r => new ReceivedAppreciationTraitResponse(
+                r.Key.Id,
+                r.Key.Slug,
+                r.Key.Label,
+                r.Key.CategorySlug,
+                r.Key.CategoryLabel,
+                r.Key.Hue,
+                r.Count,
+                ReceivedAppreciationPhrasing.ForTrait(r.Key.Slug, r.Key.Label)))
             .ToArray();
 
-        var total = categories.Sum(c => c.Count);
+        var total = traits.Sum(t => t.Count);
         IReadOnlyCollection<ReceivedAppreciationEventResponse> events = includeEvents
             ? await GetRecentEventsAsync(profileId.Value, eventLimit, cancellationToken)
             : Array.Empty<ReceivedAppreciationEventResponse>();
@@ -78,7 +92,7 @@ internal sealed class GetReceivedAppreciationHandler(
             ReceivedAppreciationPhrasing.Headline,
             total == 0 ? ReceivedAppreciationPhrasing.EmptySummary : ReceivedAppreciationPhrasing.Summary,
             total,
-            categories,
+            traits,
             events));
     }
 
@@ -93,17 +107,24 @@ internal sealed class GetReceivedAppreciationHandler(
             .AsNoTracking()
             .Where(e => e.ReceiverProfileId == profileId)
             .Join(
+                dbContext.AppreciationTraits.AsNoTracking(),
+                appreciation => appreciation.TraitId,
+                trait => trait.Id,
+                (appreciation, trait) => new { appreciation, trait })
+            .Join(
                 dbContext.AppreciationCategories.AsNoTracking(),
-                appreciation => appreciation.CategoryId,
+                x => x.trait.CategoryId,
                 category => category.Id,
-                (appreciation, category) => new
+                (x, category) => new
                 {
-                    appreciation.Id,
-                    CategoryId = category.Id,
+                    x.appreciation.Id,
+                    TraitId = x.trait.Id,
+                    TraitSlug = x.trait.Slug,
+                    TraitLabel = x.trait.Label,
                     CategorySlug = category.Slug,
-                    CategoryLabel = category.Label,
-                    appreciation.PhotoId,
-                    appreciation.CreatedAt,
+                    category.Hue,
+                    x.appreciation.PhotoId,
+                    x.appreciation.CreatedAt,
                 })
             // Id is UUIDv7 (time-ordered), so it breaks created_at ties stably —
             // recent-events paging stays deterministic across calls.
@@ -115,12 +136,14 @@ internal sealed class GetReceivedAppreciationHandler(
         return events
             .Select(e => new ReceivedAppreciationEventResponse(
                 e.Id,
-                e.CategoryId,
+                e.TraitId,
+                e.TraitSlug,
+                e.TraitLabel,
                 e.CategorySlug,
-                e.CategoryLabel,
+                e.Hue,
                 e.PhotoId,
                 e.CreatedAt,
-                ReceivedAppreciationPhrasing.ForEvent(e.CategorySlug, e.CategoryLabel)))
+                ReceivedAppreciationPhrasing.ForEvent(e.TraitSlug, e.TraitLabel)))
             .ToArray();
     }
 }

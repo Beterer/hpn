@@ -9,23 +9,29 @@ namespace Hpn.Modules.Appreciation.Tests;
 public sealed class AppreciationDomainTests
 {
     [Fact]
-    public void Seed_contains_the_fixed_twelve_positive_categories()
+    public void Seed_contains_the_six_positive_categories_each_with_a_hue()
     {
-        AppreciationCategorySeed.All.Should().HaveCount(12);
+        AppreciationCategorySeed.All.Should().HaveCount(6);
         AppreciationCategorySeed.All.Select(c => c.Slug).Should().Equal(
-            "warm_smile",
-            "authentic",
-            "stylish",
-            "calming_energy",
-            "confident",
-            "expressive",
-            "fun_energy",
-            "elegant",
-            "trustworthy",
-            "creative",
-            "kind",
-            "intelligent");
-        AppreciationCategorySeed.All.Select(c => c.SortOrder).Should().Equal(Enumerable.Range(1, 12));
+            "physical",
+            "energy",
+            "style",
+            "humor",
+            "mind",
+            "authentic");
+        AppreciationCategorySeed.All.Select(c => c.SortOrder).Should().Equal(Enumerable.Range(1, 6));
+        AppreciationCategorySeed.All.Should().OnlyContain(c => c.Hue > 0);
+    }
+
+    [Fact]
+    public void Trait_seed_has_twenty_traits_all_under_a_seeded_category()
+    {
+        var categoryIds = AppreciationCategorySeed.All.Select(c => c.Id).ToHashSet();
+
+        AppreciationTraitSeed.All.Should().HaveCount(20);
+        AppreciationTraitSeed.All.Select(t => t.SortOrder).Should().Equal(Enumerable.Range(1, 20));
+        AppreciationTraitSeed.All.Should().OnlyContain(t => categoryIds.Contains(t.CategoryId));
+        AppreciationTraitSeed.All.Select(t => t.Slug).Should().OnlyHaveUniqueItems();
     }
 
     [Fact]
@@ -34,27 +40,29 @@ public sealed class AppreciationDomainTests
         var sender = Guid.NewGuid();
         var receiver = Guid.NewGuid();
         var category = Guid.NewGuid();
+        var trait = Guid.NewGuid();
         var photo = Guid.NewGuid();
 
         var appreciation = AppreciationEvent.Create(
             sender,
             receiver,
             category,
+            trait,
             photo,
             " retry-key ",
             DateTimeOffset.UtcNow);
 
         appreciation.IdempotencyKey.Should().Be("retry-key");
-        appreciation.MatchesRequest(receiver, category, photo).Should().BeTrue();
+        appreciation.MatchesRequest(receiver, trait, photo).Should().BeTrue();
         appreciation.MatchesRequest(receiver, Guid.NewGuid(), photo).Should().BeFalse();
     }
 
     [Fact]
     public void Received_appreciation_phrasing_stays_perception_based_without_ranking_language()
     {
-        var curated = ReceivedAppreciationPhrasing.ForCategory("kind", "Kind");
+        var curated = ReceivedAppreciationPhrasing.ForTrait("warm_smile", "Warm smile");
         // An unseeded slug exercises the generic fallback template.
-        var fallback = ReceivedAppreciationPhrasing.ForCategory("graceful", "Graceful");
+        var fallback = ReceivedAppreciationPhrasing.ForTrait("graceful", "Graceful");
         var eventPhrase = ReceivedAppreciationPhrasing.ForEvent("warm_smile", "Warm smile");
 
         curated.Should().StartWith("People often");
@@ -78,7 +86,7 @@ public sealed class AppreciationDomainTests
         platformShare.Should().Be(0.375);
         difference.Should().Be(0.375);
 
-        var insight = AppreciationStylePhrasing.ForCategory("Warm smile", count: 3, difference);
+        var insight = AppreciationStylePhrasing.ForCategory("Physical", count: 3, difference);
         insight.Should().Contain("wider Notice pattern");
         insight.Should().NotContain("score");
         insight.Should().NotContain("rank");

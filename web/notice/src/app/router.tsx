@@ -31,6 +31,10 @@ export const router = createBrowserRouter([
     element: <Home />,
   },
   {
+    path: '/you',
+    element: <Home />,
+  },
+  {
     path: '/auth/verify',
     element: <VerifyPage />,
   },

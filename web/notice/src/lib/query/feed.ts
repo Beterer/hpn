@@ -10,6 +10,8 @@ type FeedStatus = 'loading' | 'ready' | 'error'
 
 export interface FeedQueue {
   current: FeedProfile | null
+  /** The next card, shown scaled-back behind the current one for depth. */
+  next: FeedProfile | null
   remaining: number
   status: FeedStatus
   error: string | null
@@ -94,6 +96,7 @@ export function useFeedQueue(): FeedQueue {
 
   return {
     current: queue[0] ?? null,
+    next: queue[1] ?? null,
     remaining: queue.length,
     status,
     error,

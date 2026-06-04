@@ -44,8 +44,10 @@ public sealed class SocialFingerprintFlowTests : IAsyncLifetime
     {
         var target = await CreateDraftParticipantAsync("fingerprint-target@example.com");
         var categories = await GetCategoriesAsync(target.Client);
-        var warmSmile = categories.Single(c => c.Slug == "warm_smile");
-        var creative = categories.Single(c => c.Slug == "creative");
+        var physical = categories.Single(c => c.Slug == "physical");
+        var energy = categories.Single(c => c.Slug == "energy");
+        var warmSmile = physical.Traits.Single(t => t.Slug == "warm_smile");
+        var goodVibe = energy.Traits.Single(t => t.Slug == "good_vibe");
 
         var gated = await target.Client.GetAsync("/api/v1/fingerprint/me", Ct);
         var gatedBody = await gated.Content.ReadAsStringAsync(Ct);
@@ -57,8 +59,12 @@ public sealed class SocialFingerprintFlowTests : IAsyncLifetime
             gatedDoc.RootElement.GetProperty("sampleSize").GetInt32().Should().Be(0);
         }
 
-        await InsertReceivedStatAsync(target.ProfileId, warmSmile.Id, count: 14);
-        await InsertReceivedStatAsync(target.ProfileId, creative.Id, count: 6);
+        // Category stats drive the radar + the >=20 gate; the matching trait events
+        // drive the trait-level recurring traits (ADR-025).
+        await InsertReceivedStatAsync(target.ProfileId, physical.Id, count: 14);
+        await InsertReceivedStatAsync(target.ProfileId, energy.Id, count: 6);
+        await InsertReceivedTraitEventsAsync(target.ProfileId, physical.Id, warmSmile.Id, count: 14);
+        await InsertReceivedTraitEventsAsync(target.ProfileId, energy.Id, goodVibe.Id, count: 6);
 
         var ready = await target.Client.GetAsync("/api/v1/fingerprint/me", Ct);
         ready.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -72,14 +78,15 @@ public sealed class SocialFingerprintFlowTests : IAsyncLifetime
         root.GetProperty("sampleSize").GetInt32().Should().Be(20);
 
         var distribution = root.GetProperty("distribution").EnumerateArray().ToArray();
-        distribution.Should().HaveCount(12);
-        distribution.Single(c => c.GetProperty("slug").GetString() == "warm_smile")
+        distribution.Should().HaveCount(6);
+        distribution.Single(c => c.GetProperty("slug").GetString() == "physical")
             .GetProperty("share").GetDouble().Should().Be(0.7);
-        distribution.Single(c => c.GetProperty("slug").GetString() == "creative")
+        distribution.Single(c => c.GetProperty("slug").GetString() == "energy")
             .GetProperty("share").GetDouble().Should().Be(0.3);
 
         var topTraits = root.GetProperty("topTraits").EnumerateArray().ToArray();
-        topTraits.Select(t => t.GetProperty("slug").GetString()).Take(2).Should().Equal("warm_smile", "creative");
+        topTraits.Select(t => t.GetProperty("slug").GetString()).Take(2).Should().Equal("warm_smile", "good_vibe");
+        topTraits[0].GetProperty("hue").GetInt32().Should().Be(38);
         topTraits[0].GetProperty("phrasing").GetString().Should().Contain("perceive");
 
         var trend = root.GetProperty("trend").EnumerateArray().ToArray();
@@ -111,14 +118,14 @@ public sealed class SocialFingerprintFlowTests : IAsyncLifetime
         var viewer = await CreateDraftParticipantAsync("style-viewer@example.com");
         var other = await CreateDraftParticipantAsync("style-other@example.com");
         var categories = await GetCategoriesAsync(viewer.Client);
-        var warmSmile = categories.Single(c => c.Slug == "warm_smile");
-        var creative = categories.Single(c => c.Slug == "creative");
-        var kind = categories.Single(c => c.Slug == "kind");
+        var physical = categories.Single(c => c.Slug == "physical");
+        var energy = categories.Single(c => c.Slug == "energy");
+        var mind = categories.Single(c => c.Slug == "mind");
 
-        await InsertGivenStatAsync(viewer.UserId, warmSmile.Id, count: 3);
-        await InsertGivenStatAsync(viewer.UserId, creative.Id, count: 1);
-        await InsertGivenStatAsync(other.UserId, creative.Id, count: 3);
-        await InsertGivenStatAsync(other.UserId, kind.Id, count: 1);
+        await InsertGivenStatAsync(viewer.UserId, physical.Id, count: 3);
+        await InsertGivenStatAsync(viewer.UserId, energy.Id, count: 1);
+        await InsertGivenStatAsync(other.UserId, energy.Id, count: 3);
+        await InsertGivenStatAsync(other.UserId, mind.Id, count: 1);
 
         var response = await viewer.Client.GetAsync("/api/v1/appreciation-style/me", Ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -130,18 +137,18 @@ public sealed class SocialFingerprintFlowTests : IAsyncLifetime
         root.GetProperty("total").GetInt32().Should().Be(4);
 
         var styleCategories = root.GetProperty("categories").EnumerateArray().ToArray();
-        styleCategories.Should().HaveCount(12);
-        var warm = styleCategories.Single(c => c.GetProperty("slug").GetString() == "warm_smile");
-        warm.GetProperty("count").GetInt32().Should().Be(3);
-        warm.GetProperty("share").GetDouble().Should().Be(0.75);
-        warm.GetProperty("platformShare").GetDouble().Should().Be(0.375);
-        warm.GetProperty("difference").GetDouble().Should().Be(0.375);
-        warm.GetProperty("insight").GetString().Should().Contain("wider Notice pattern");
+        styleCategories.Should().HaveCount(6);
+        var physicalStyle = styleCategories.Single(c => c.GetProperty("slug").GetString() == "physical");
+        physicalStyle.GetProperty("count").GetInt32().Should().Be(3);
+        physicalStyle.GetProperty("share").GetDouble().Should().Be(0.75);
+        physicalStyle.GetProperty("platformShare").GetDouble().Should().Be(0.375);
+        physicalStyle.GetProperty("difference").GetDouble().Should().Be(0.375);
+        physicalStyle.GetProperty("insight").GetString().Should().Contain("wider Notice pattern");
 
-        var creativeStyle = styleCategories.Single(c => c.GetProperty("slug").GetString() == "creative");
-        creativeStyle.GetProperty("share").GetDouble().Should().Be(0.25);
-        creativeStyle.GetProperty("platformShare").GetDouble().Should().Be(0.5);
-        creativeStyle.GetProperty("difference").GetDouble().Should().Be(-0.25);
+        var energyStyle = styleCategories.Single(c => c.GetProperty("slug").GetString() == "energy");
+        energyStyle.GetProperty("share").GetDouble().Should().Be(0.25);
+        energyStyle.GetProperty("platformShare").GetDouble().Should().Be(0.5);
+        energyStyle.GetProperty("difference").GetDouble().Should().Be(-0.25);
 
         var body = root.GetRawText().ToLowerInvariant();
         body.Should().NotContain("score");
@@ -160,7 +167,9 @@ public sealed class SocialFingerprintFlowTests : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    private sealed record Category(Guid Id, string Slug, string Label, int SortOrder);
+    private sealed record Trait(Guid Id, Guid CategoryId, string Slug, string Label, int SortOrder);
+
+    private sealed record Category(Guid Id, string Slug, string Label, int SortOrder, int Hue, Trait[] Traits);
 
     private async Task<Category[]> GetCategoriesAsync(HttpClient client)
     {
@@ -168,9 +177,29 @@ public sealed class SocialFingerprintFlowTests : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var categories = await response.Content.ReadFromJsonAsync<Category[]>(cancellationToken: Ct);
         categories.Should().NotBeNull();
-        categories.Should().HaveCount(12);
+        categories.Should().HaveCount(6);
         return categories!;
     }
+
+    private async Task<Trait> GetTraitAsync(HttpClient client, string slug) =>
+        (await GetCategoriesAsync(client)).SelectMany(c => c.Traits).Single(t => t.Slug == slug);
+
+    // Bulk-insert N appreciation events for a trait, each from a distinct random
+    // sender, so the trait-level fingerprint read (which aggregates events) has data.
+    private Task InsertReceivedTraitEventsAsync(Guid receiverProfileId, Guid categoryId, Guid traitId, int count) => ExecuteAsync(
+        """
+        INSERT INTO appreciation.appreciation_events
+            (id, sender_user_id, receiver_profile_id, category_id, trait_id, idempotency_key, created_at)
+        SELECT gen_random_uuid(), gen_random_uuid(), @receiver, @category, @trait, 'fp-seed-' || g::text || '-' || @trait::text, now()
+        FROM generate_series(1, @count) AS g
+        """,
+        p =>
+        {
+            p.AddWithValue("receiver", receiverProfileId);
+            p.AddWithValue("category", categoryId);
+            p.AddWithValue("trait", traitId);
+            p.AddWithValue("count", count);
+        });
 
     private sealed record Participant(HttpClient Client, Guid ProfileId, Guid UserId);
 

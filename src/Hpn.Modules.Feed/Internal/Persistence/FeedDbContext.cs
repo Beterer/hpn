@@ -20,6 +20,8 @@ internal sealed class FeedDbContext(DbContextOptions<FeedDbContext> options) : D
     public DbSet<FeedBlockRow> UserBlocks => Set<FeedBlockRow>();
     public DbSet<FeedPhotoRow> Photos => Set<FeedPhotoRow>();
     public DbSet<FeedAppreciationRow> AppreciationEvents => Set<FeedAppreciationRow>();
+    public DbSet<FeedProfileInterestRow> ProfileInterests => Set<FeedProfileInterestRow>();
+    public DbSet<FeedInterestRow> Interests => Set<FeedInterestRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,6 +54,18 @@ internal sealed class FeedDbContext(DbContextOptions<FeedDbContext> options) : D
         modelBuilder.Entity<FeedAppreciationRow>(b =>
         {
             b.ToTable("appreciation_events", "appreciation", t => t.ExcludeFromMigrations());
+            b.HasKey(x => x.Id);
+        });
+
+        modelBuilder.Entity<FeedProfileInterestRow>(b =>
+        {
+            b.ToTable("profile_interests", "profile", t => t.ExcludeFromMigrations());
+            b.HasKey(x => new { x.ProfileId, x.InterestId });
+        });
+
+        modelBuilder.Entity<FeedInterestRow>(b =>
+        {
+            b.ToTable("interests", "profile", t => t.ExcludeFromMigrations());
             b.HasKey(x => x.Id);
         });
 

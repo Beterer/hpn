@@ -17,6 +17,15 @@ public interface IAppreciationApi
         Guid profileId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Trait-level received counts for a profile (ADR-025), aggregated from the
+    /// appreciation events. Lets the fingerprint surface specific recurring traits
+    /// while the radar stays category-level.
+    /// </summary>
+    Task<IReadOnlyCollection<AppreciationTraitCountDto>> GetReceivedTraitSummaryAsync(
+        Guid profileId,
+        CancellationToken cancellationToken = default);
+
     Task<AppreciationStyleDto> GetAppreciationStyleAsync(
         Guid userId,
         CancellationToken cancellationToken = default);

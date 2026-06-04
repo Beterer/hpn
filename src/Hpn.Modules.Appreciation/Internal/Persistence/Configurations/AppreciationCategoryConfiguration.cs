@@ -14,6 +14,7 @@ internal sealed class AppreciationCategoryConfiguration : IEntityTypeConfigurati
         builder.Property(c => c.Slug).HasMaxLength(64).IsRequired();
         builder.Property(c => c.Label).HasMaxLength(80).IsRequired();
         builder.Property(c => c.SortOrder).IsRequired();
+        builder.Property(c => c.Hue).IsRequired();
         builder.Property(c => c.Active).IsRequired();
 
         builder.HasIndex(c => c.Slug).IsUnique();

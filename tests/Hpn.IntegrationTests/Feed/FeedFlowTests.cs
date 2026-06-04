@@ -360,8 +360,9 @@ public sealed class FeedFlowTests : IAsyncLifetime
 
     private Task InsertAppreciationAsync(Guid senderUserId, Guid receiverProfileId) => ExecuteAsync(
         "INSERT INTO appreciation.appreciation_events " +
-        "(id, sender_user_id, receiver_profile_id, category_id, idempotency_key, created_at) " +
-        "VALUES (@id, @sender, @receiver, (SELECT id FROM appreciation.appreciation_categories ORDER BY sort_order LIMIT 1), @key, now())",
+        "(id, sender_user_id, receiver_profile_id, category_id, trait_id, idempotency_key, created_at) " +
+        "SELECT @id, @sender, @receiver, t.category_id, t.id, @key, now() " +
+        "FROM appreciation.appreciation_traits t ORDER BY t.sort_order LIMIT 1",
         p =>
         {
             var eventId = Guid.NewGuid();

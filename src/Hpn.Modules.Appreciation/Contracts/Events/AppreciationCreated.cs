@@ -7,5 +7,6 @@ public sealed record AppreciationCreated(
     Guid SenderUserId,
     Guid ReceiverProfileId,
     Guid CategoryId,
+    Guid TraitId,
     Guid? PhotoId,
     DateTimeOffset OccurredAt) : IDomainEvent;

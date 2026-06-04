@@ -125,6 +125,11 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
                         $"{ApiRoutes.Prefix}/photos/{ph.Id}/content?variant=display",
                         $"{ApiRoutes.Prefix}/photos/{ph.Id}/content?variant=thumb"))
                     .ToList(),
+                Interests = dbContext.ProfileInterests
+                    .Where(pi => pi.ProfileId == p.Id)
+                    .Join(dbContext.Interests, pi => pi.InterestId, i => i.Id, (pi, i) => i.Label)
+                    .OrderBy(label => label)
+                    .ToList(),
             })
             .ToListAsync(cancellationToken);
 
@@ -139,6 +144,7 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
             r.Bio,
             r.Verified,
             r.Photos,
+            r.Interests,
             DistanceBuckets.For(viewerLat, viewerLng, r.GeoLat, r.GeoLng, viewerCountry, r.CountryCode)));
 
         // Restore the strategy's chosen order (the DB returned cards unordered).
@@ -212,6 +218,11 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
                         $"{ApiRoutes.Prefix}/photos/{ph.Id}/content?variant=display",
                         $"{ApiRoutes.Prefix}/photos/{ph.Id}/content?variant=thumb"))
                     .ToList(),
+                Interests = dbContext.ProfileInterests
+                    .Where(pi => pi.ProfileId == p.Id)
+                    .Join(dbContext.Interests, pi => pi.InterestId, i => i.Id, (pi, i) => i.Label)
+                    .OrderBy(label => label)
+                    .ToList(),
             })
             .ToListAsync(cancellationToken);
 
@@ -224,6 +235,7 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
             r.Bio,
             r.Verified,
             r.Photos,
+            r.Interests,
             DistanceBuckets.For(null, null, r.GeoLat, r.GeoLng, null, r.CountryCode)));
 
         var byId = cards.ToDictionary(c => c.ProfileId);

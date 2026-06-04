@@ -52,12 +52,12 @@ public sealed class GuestFlowTests : IAsyncLifetime
         var target = await CreateActiveParticipantAsync("guest-target@example.com");
         var other = await CreateActiveParticipantAsync("guest-other@example.com");
         var guest = await StartGuestAsync();
-        var category = await FirstCategoryAsync(guest.Client);
+        var trait = await FirstTraitAsync(guest.Client);
 
         var feed = await GetFeedAsync(guest.Client);
         feed.Should().Contain(new[] { target.ProfileId, other.ProfileId });
 
-        var submitted = await SubmitAsync(guest.Client, target.ProfileId, category.Id, "guest-reacts");
+        var submitted = await SubmitAsync(guest.Client, target.ProfileId, trait.Id, "guest-reacts");
         submitted.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var receivedCount = await ScalarIntAsync(
@@ -65,7 +65,7 @@ public sealed class GuestFlowTests : IAsyncLifetime
             p =>
             {
                 p.AddWithValue("profile", target.ProfileId);
-                p.AddWithValue("category", category.Id);
+                p.AddWithValue("category", trait.CategoryId);
             });
         receivedCount.Should().Be(1);
 
@@ -74,7 +74,7 @@ public sealed class GuestFlowTests : IAsyncLifetime
             p =>
             {
                 p.AddWithValue("sender", guest.GuestId);
-                p.AddWithValue("category", category.Id);
+                p.AddWithValue("category", trait.CategoryId);
             });
         givenCount.Should().Be(1);
 
@@ -99,8 +99,8 @@ public sealed class GuestFlowTests : IAsyncLifetime
     {
         var target = await CreateActiveParticipantAsync("convert-target@example.com");
         var guest = await StartGuestAsync();
-        var category = await FirstCategoryAsync(guest.Client);
-        (await SubmitAsync(guest.Client, target.ProfileId, category.Id, "convert-guest")).StatusCode
+        var trait = await FirstTraitAsync(guest.Client);
+        (await SubmitAsync(guest.Client, target.ProfileId, trait.Id, "convert-guest")).StatusCode
             .Should().Be(HttpStatusCode.Created);
 
         var verified = await VerifyMagicLinkAsync(guest.Client, "converted@example.com");
@@ -118,7 +118,7 @@ public sealed class GuestFlowTests : IAsyncLifetime
             p =>
             {
                 p.AddWithValue("sender", userId);
-                p.AddWithValue("category", category.Id);
+                p.AddWithValue("category", trait.CategoryId);
             });
         givenCount.Should().Be(1);
 
@@ -135,12 +135,12 @@ public sealed class GuestFlowTests : IAsyncLifetime
     {
         var member = await CreateActiveParticipantAsync("collision-member@example.com");
         var target = await CreateActiveParticipantAsync("collision-target@example.com");
-        var category = await FirstCategoryAsync(member.Client);
-        (await SubmitAsync(member.Client, target.ProfileId, category.Id, "member-existing")).StatusCode
+        var trait = await FirstTraitAsync(member.Client);
+        (await SubmitAsync(member.Client, target.ProfileId, trait.Id, "member-existing")).StatusCode
             .Should().Be(HttpStatusCode.Created);
 
         var guest = await StartGuestAsync();
-        (await SubmitAsync(guest.Client, target.ProfileId, category.Id, "guest-colliding")).StatusCode
+        (await SubmitAsync(guest.Client, target.ProfileId, trait.Id, "guest-colliding")).StatusCode
             .Should().Be(HttpStatusCode.Created);
 
         await VerifyMagicLinkAsync(guest.Client, "collision-member@example.com");
@@ -155,7 +155,7 @@ public sealed class GuestFlowTests : IAsyncLifetime
             {
                 p.AddWithValue("sender", member.UserId);
                 p.AddWithValue("receiver", target.ProfileId);
-                p.AddWithValue("category", category.Id);
+                p.AddWithValue("category", trait.CategoryId);
             });
         eventCount.Should().Be(1);
 
@@ -164,7 +164,7 @@ public sealed class GuestFlowTests : IAsyncLifetime
             p =>
             {
                 p.AddWithValue("sender", member.UserId);
-                p.AddWithValue("category", category.Id);
+                p.AddWithValue("category", trait.CategoryId);
             });
         givenCount.Should().Be(2);
 
@@ -173,7 +173,7 @@ public sealed class GuestFlowTests : IAsyncLifetime
             p =>
             {
                 p.AddWithValue("receiver", target.ProfileId);
-                p.AddWithValue("category", category.Id);
+                p.AddWithValue("category", trait.CategoryId);
             });
         receivedCount.Should().Be(1);
     }
@@ -199,7 +199,8 @@ public sealed class GuestFlowTests : IAsyncLifetime
 
     private sealed record GuestClient(HttpClient Client, Guid GuestId);
     private sealed record Participant(HttpClient Client, Guid ProfileId, Guid UserId);
-    private sealed record Category(Guid Id, string Slug, string Label);
+    private sealed record Trait(Guid Id, Guid CategoryId, string Slug, string Label, int SortOrder);
+    private sealed record Category(Guid Id, string Slug, string Label, int SortOrder, int Hue, Trait[] Traits);
     private sealed record VerifiedUser(Guid UserId, string Cookie);
 
     private async Task<GuestClient> StartGuestAsync()
@@ -274,19 +275,19 @@ public sealed class GuestFlowTests : IAsyncLifetime
         return client;
     }
 
-    private async Task<Category> FirstCategoryAsync(HttpClient client)
+    private async Task<Trait> FirstTraitAsync(HttpClient client)
     {
         var response = await client.GetAsync("/api/v1/appreciation-categories", Ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var categories = await response.Content.ReadFromJsonAsync<Category[]>(cancellationToken: Ct);
         categories.Should().NotBeNull();
-        return categories![0];
+        return categories![0].Traits[0];
     }
 
     private async Task<HttpResponseMessage> SubmitAsync(
         HttpClient client,
         Guid receiverProfileId,
-        Guid categoryId,
+        Guid traitId,
         string idempotencyKey)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/appreciations")
@@ -294,7 +295,7 @@ public sealed class GuestFlowTests : IAsyncLifetime
             Content = JsonContent.Create(new
             {
                 receiverProfileId,
-                categoryId,
+                traitId,
                 photoId = (Guid?)null,
             }),
         };

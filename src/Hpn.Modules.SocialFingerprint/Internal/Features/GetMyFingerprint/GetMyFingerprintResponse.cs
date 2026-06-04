@@ -18,12 +18,15 @@ internal sealed record FingerprintDistributionItemResponse(
     double Share,
     string Phrasing);
 
+// A specific recurring trait (ADR-025): the named trait, its share, and the hue of
+// the category it belongs to so the client can colour it like the radar.
 internal sealed record FingerprintTraitResponse(
-    Guid CategoryId,
+    Guid TraitId,
     string Slug,
     string Label,
     double Share,
-    string Phrasing);
+    string Phrasing,
+    int Hue);
 
 internal sealed record FingerprintTrendPointResponse(
     DateOnly PeriodStart,

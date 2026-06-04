@@ -28,24 +28,26 @@ internal static class FingerprintDistribution
             .ToArray();
     }
 
+    // The specific recurring traits (ADR-025): top named traits by how often people
+    // chose them, coloured by their category's hue. The radar above stays
+    // category-level; this is the second level of the taxonomy.
     public static IReadOnlyCollection<FingerprintTraitResponse> TopTraits(
-        ReceivedAppreciationSummaryDto summary,
-        IReadOnlyCollection<AppreciationCategoryDto> activeCategories,
+        IReadOnlyCollection<AppreciationTraitCountDto> traits,
+        int total,
         int limit = 3)
     {
-        var sortOrders = activeCategories.ToDictionary(c => c.Id, c => c.SortOrder);
-
-        return summary.Categories
-            .Where(c => c.Count > 0)
-            .OrderByDescending(c => c.Count)
-            .ThenBy(c => sortOrders.GetValueOrDefault(c.CategoryId, int.MaxValue))
+        return traits
+            .Where(t => t.Count > 0)
+            .OrderByDescending(t => t.Count)
+            .ThenBy(t => t.Slug)
             .Take(limit)
-            .Select(c => new FingerprintTraitResponse(
-                c.CategoryId,
-                c.Slug,
-                c.Label,
-                RoundShare(c.Count, summary.Total),
-                FingerprintPhrasing.ForTrait(c.Slug, c.Label)))
+            .Select(t => new FingerprintTraitResponse(
+                t.TraitId,
+                t.Slug,
+                t.Label,
+                RoundShare(t.Count, total),
+                FingerprintPhrasing.ForTrait(t.Label),
+                t.Hue))
             .ToArray();
     }
 

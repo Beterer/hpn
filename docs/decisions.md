@@ -449,6 +449,43 @@ enough for reactions that count); require signup before reacting (rejected: defe
 adoption goal and feed mechanic); a Feed-owned guest hides table (rejected: durable hides
 are not needed for v1 and would violate Feed's table-less posture).
 
+### ADR-025 — Two-level appreciation taxonomy: 6 categories × specific traits
+**Status:** Accepted. Supersedes the flat 12-category taxonomy from `ADR-021`-era seeding.
+**Context:** The original taxonomy was a flat list of 12 categories (`warm_smile`,
+`calming_energy`, …) with no grouping. The Notice redesign (`docs/Design`) specifies a
+**flattened trait picker**: the appreciator sees ~20 specific traits at once as a single
+colour-coded cloud and reacts in one tap, where colour conveys a category. That needs two
+levels — a small set of categories carrying a colour, and the named traits under them —
+which the flat model could not express.
+**Decision:** Replace the flat list with **6 categories** (`physical`, `energy`, `style`,
+`humor`, `mind`, `authentic`), each carrying a `hue` (the OKLCH hue used for its accent),
+and **20 traits** seeded under them (e.g. `physical` → Warm smile, Kind eyes, Great hair,
+Natural glow). `appreciation_events` gains a required `trait_id` (FK to the new
+`appreciation_traits` table) alongside the existing `category_id`, which stays denormalized
+from the trait so the projections, the `(sender, receiver, category)` duplicate guard, and
+the `GuestConverted` re-key SQL keep working unchanged. `SubmitAppreciation` takes a
+`traitId` and derives the category. `GET /appreciation-categories` returns each category
+with its `hue` and nested traits (feeds the picker). Received gains trait-level "ways people
+describe you" cards (label + category hue + count + phrasing), computed on demand from
+events rather than via a new projection table.
+**Rationale:** Keeping `category_id` denormalized on the event preserves every existing
+category-level read (fingerprint distribution, appreciation style, given/received counters)
+and the guest-conversion machinery, so the change is additive at the storage layer. Trait
+counts for Received are read on demand because that surface is cold and a second
+projection + a second `GuestConverted` compensation path was not worth the complexity.
+**Consequences:** This is a breaking taxonomy change with no data migration path — the
+migration truncates `appreciation_events` and the stat tables and reseeds, acceptable
+pre-launch. The Fingerprint radar/distribution stays **category-level** (correctly 6 axes),
+while its **"recurring traits" list is trait-level**: `IAppreciationApi.GetReceivedTraitSummaryAsync`
+exposes per-trait received counts (read from events, carrying the category hue), so the
+second level of the taxonomy surfaces there. Appreciation Style stays category-level. The
+duplicate guard remains per-category, which is sufficient because the feed is
+appreciate-once-then-advance and never re-shows a profile.
+**Alternatives:** Keep the flat 12 categories and render them as the cloud (rejected by
+product: loses the named-trait warmth the redesign is built around); a separate
+`received_trait_stats` projection (rejected: extra write path + guest-conversion
+compensation for a cold read).
+
 ---
 
 ## Deferred (chosen not to build yet)

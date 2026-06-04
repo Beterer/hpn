@@ -55,3 +55,19 @@ internal sealed class FeedAppreciationRow
     public Guid SenderUserId { get; init; }
     public Guid ReceiverProfileId { get; init; }
 }
+
+// profile.profile_interests (join) + profile.interests (catalog). Interests are
+// already public (they appear on PublicProfileResponse), so surfacing them on the
+// feed card is consistent with the privacy posture — read-only, like the rest.
+internal sealed class FeedProfileInterestRow
+{
+    public Guid ProfileId { get; init; }
+    public Guid InterestId { get; init; }
+}
+
+internal sealed class FeedInterestRow
+{
+    public Guid Id { get; init; }
+    public string Slug { get; init; } = null!;
+    public string Label { get; init; } = null!;
+}
