@@ -46,7 +46,8 @@ internal sealed class PhotoDevelopmentDataSeeder(
 
             for (var position = 0; position < desiredCount; position++)
             {
-                var file = imageFiles[(profileIndex * _uploadOptions.MaxPhotosPerProfile + position) % imageFiles.Count];
+                var imageOffset = StableIndex($"photo-image-offset:{key}", imageFiles.Count);
+                var file = imageFiles[(imageOffset + position) % imageFiles.Count];
                 var photo = await EnsurePhotoAsync(
                     key,
                     seededProfile.ProfileId,
@@ -167,13 +168,8 @@ internal sealed class PhotoDevelopmentDataSeeder(
 
     private int DesiredPhotoCount(string profileKey, int profileIndex)
     {
-        var max = Math.Max(1, _uploadOptions.MaxPhotosPerProfile);
-        if (profileKey == "test")
-        {
-            return Math.Min(4, max);
-        }
-
-        return 1 + profileIndex % max;
+        var max = Math.Clamp(_uploadOptions.MaxPhotosPerProfile, 1, 5);
+        return 1 + StableIndex($"photo-count:{profileKey}:{profileIndex}", max);
     }
 
     private IReadOnlyList<string> ResolveImageFiles(string configuredPath)
@@ -213,5 +209,17 @@ internal sealed class PhotoDevelopmentDataSeeder(
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes("hpn-development-seed:" + value));
         return new Guid(hash[..16]);
+    }
+
+    private static int StableIndex(string value, int length)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes("hpn-development-seed-random:" + value));
+        var bytes = hash[..8];
+        if (!BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(bytes);
+        }
+
+        return (int)Math.Floor(BitConverter.ToUInt64(bytes) / ((double)ulong.MaxValue + 1) * length);
     }
 }
