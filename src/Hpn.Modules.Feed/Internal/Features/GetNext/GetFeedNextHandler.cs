@@ -75,7 +75,8 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
         var seen = seenProfileIds.Take(MaxSeen).ToArray();
 
         var eligible = BuildEligibilityQuery(
-            viewerUserId,
+            actorId: viewerUserId,
+            viewerUserId: viewerUserId,
             viewer,
             viewerIsWoman,
             viewerWantsWomenOnly,
@@ -85,6 +86,7 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
             minDistanceKm,
             viewerLat,
             viewerLng,
+            isGuest: false,
             seen);
 
         var eligibleIds = await eligible
@@ -144,13 +146,98 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
         return [.. selectedIds.Where(byId.ContainsKey).Select(id => byId[id])];
     }
 
+    public async Task<IReadOnlyList<FeedProfileDto>> HandleForGuestAsync(
+        Guid guestId,
+        int? limit,
+        IReadOnlyCollection<Guid> seenProfileIds,
+        CancellationToken cancellationToken)
+    {
+        var batchSize = Math.Clamp(limit ?? DefaultLimit, 1, MaxLimit);
+        var viewer = new FeedViewerContext(
+            ProfileId: null,
+            ActorId: guestId,
+            Gender: null,
+            CountryCode: null,
+            Verified: false);
+        var seen = seenProfileIds.Take(MaxSeen).ToArray();
+
+        var eligible = BuildEligibilityQuery(
+            actorId: guestId,
+            viewerUserId: null,
+            viewer,
+            viewerIsWoman: false,
+            viewerWantsWomenOnly: false,
+            viewerWantsVerifiedOnly: false,
+            viewerWantsOutsideCountry: false,
+            viewerCountry: null,
+            minDistanceKm: null,
+            viewerLat: null,
+            viewerLng: null,
+            isGuest: true,
+            seen);
+
+        var eligibleIds = await eligible
+            .OrderBy(_ => EF.Functions.Random())
+            .Take(CandidatePoolSize)
+            .ToListAsync(cancellationToken);
+
+        var selectedIds = strategy.Select(eligibleIds, viewer, batchSize);
+        if (selectedIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await dbContext.Profiles
+            .AsNoTracking()
+            .Where(p => selectedIds.Contains(p.Id))
+            .Select(p => new
+            {
+                p.Id,
+                p.DisplayName,
+                p.Gender,
+                p.SelfDescribeText,
+                p.CountryCode,
+                p.Bio,
+                p.Verified,
+                p.GeoLat,
+                p.GeoLng,
+                Photos = dbContext.Photos
+                    .Where(ph => ph.ProfileId == p.Id && ph.Status == "ready")
+                    .OrderBy(ph => ph.Position)
+                    .Select(ph => new FeedPhotoDto(
+                        ph.Id,
+                        ph.Position,
+                        ph.Width,
+                        ph.Height,
+                        $"{ApiRoutes.Prefix}/photos/{ph.Id}/content?variant=display",
+                        $"{ApiRoutes.Prefix}/photos/{ph.Id}/content?variant=thumb"))
+                    .ToList(),
+            })
+            .ToListAsync(cancellationToken);
+
+        var cards = rows.Select(r => new FeedProfileDto(
+            r.Id,
+            r.DisplayName,
+            r.Gender,
+            r.SelfDescribeText,
+            r.CountryCode,
+            r.Bio,
+            r.Verified,
+            r.Photos,
+            DistanceBuckets.For(null, null, r.GeoLat, r.GeoLng, null, r.CountryCode)));
+
+        var byId = cards.ToDictionary(c => c.ProfileId);
+        return [.. selectedIds.Where(byId.ContainsKey).Select(id => byId[id])];
+    }
+
     /// <summary>
     /// The eligibility query — the stable hard filters (backbone §6.5). Returns the
     /// profile ids a viewer is permitted to see. Volatile ordering/selection is the
     /// strategy's job and is intentionally absent here.
     /// </summary>
     private IQueryable<Guid> BuildEligibilityQuery(
-        Guid viewerUserId,
+        Guid actorId,
+        Guid? viewerUserId,
         FeedViewerContext viewer,
         bool viewerIsWoman,
         bool viewerWantsWomenOnly,
@@ -160,22 +247,33 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
         int? minDistanceKm,
         double? viewerLat,
         double? viewerLng,
+        bool isGuest,
         IReadOnlyCollection<Guid> seen)
     {
         var query = dbContext.Profiles
             .AsNoTracking()
             .Where(c => c.Status == "active")          // not draft/paused/under_review/banned/deleted
-            .Where(c => c.UserId != viewerUserId)      // never show the viewer themselves
             .Where(c => !dbContext.VisibilityPreferences.Any(v => v.ProfileId == c.Id && v.Paused))
-            // blocks honoured in both directions (§6.5)
-            .Where(c => !dbContext.UserBlocks.Any(b =>
-                (b.BlockerUserId == viewerUserId && b.BlockedUserId == c.UserId) ||
-                (b.BlockerUserId == c.UserId && b.BlockedUserId == viewerUserId)))
             // recency: already-appreciated profiles drop out for good (§7.6)
             .Where(c => !dbContext.AppreciationEvents.Any(a =>
-                a.SenderUserId == viewerUserId && a.ReceiverProfileId == c.Id))
+                a.SenderUserId == actorId && a.ReceiverProfileId == c.Id))
             // a profile only appears once it has a ready photo to show (§6.3)
             .Where(c => dbContext.Photos.Any(ph => ph.ProfileId == c.Id && ph.Status == "ready"));
+
+        if (viewerUserId is Guid memberUserId)
+        {
+            query = query
+                .Where(c => c.UserId != memberUserId)      // never show the viewer themselves
+                // blocks honoured in both directions (§6.5)
+                .Where(c => !dbContext.UserBlocks.Any(b =>
+                    (b.BlockerUserId == memberUserId && b.BlockedUserId == c.UserId) ||
+                    (b.BlockerUserId == c.UserId && b.BlockedUserId == memberUserId)));
+        }
+
+        if (isGuest)
+        {
+            query = query.Where(c => !dbContext.VisibilityPreferences.Any(v => v.ProfileId == c.Id && v.HiddenFromGuests));
+        }
 
         if (seen.Count > 0)
         {

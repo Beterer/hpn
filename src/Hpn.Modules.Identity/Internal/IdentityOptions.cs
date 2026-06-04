@@ -14,6 +14,12 @@ internal sealed class IdentityOptions
     /// <summary>Sliding session lifetime (§10.1).</summary>
     public TimeSpan SessionLifetime { get; set; } = TimeSpan.FromDays(30);
 
+    /// <summary>Sliding guest-session lifetime; defaults to the member session window.</summary>
+    public TimeSpan GuestSessionLifetime { get; set; } = TimeSpan.FromDays(30);
+
+    /// <summary>Client-side soft nudge threshold for guest signup prompts.</summary>
+    public int NudgeReactionThreshold { get; set; } = 10;
+
     /// <summary>
     /// Grace window between a deletion request (soft-delete) and the irreversible
     /// hard purge (§10.5). Tunable; not a blocker.

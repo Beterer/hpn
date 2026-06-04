@@ -182,6 +182,11 @@ public sealed class PhotoFlowTests : IAsyncLifetime
         var thumb = await viewerClient.GetAsync($"/api/v1/photos/{photoId}/content?variant=thumb", ct);
         thumb.StatusCode.Should().Be(HttpStatusCode.OK);
 
+        var guestClient = await StartGuestAsync();
+        var guestDisplay = await guestClient.GetAsync($"/api/v1/photos/{photoId}/content?variant=display", ct);
+        guestDisplay.StatusCode.Should().Be(HttpStatusCode.OK);
+        guestDisplay.Content.Headers.ContentType!.MediaType.Should().Be("image/webp");
+
         // Unknown variant is a 400; the original is never an option.
         var badVariant = await viewerClient.GetAsync($"/api/v1/photos/{photoId}/content?variant=original", ct);
         badVariant.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -293,6 +298,20 @@ public sealed class PhotoFlowTests : IAsyncLifetime
         return client;
     }
 
+    private async Task<HttpClient> StartGuestAsync()
+    {
+        var client = _factory.CreateClient();
+        var ct = TestContext.Current.CancellationToken;
+
+        var started = await client.PostAsync("/api/v1/guest/start", content: null, ct);
+        started.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var cookie = ExtractCookie(started, "hpn_guest");
+        cookie.Should().NotBeNull();
+        client.DefaultRequestHeaders.Add("Cookie", cookie);
+        return client;
+    }
+
     private static async Task<byte[]> CreateJpegAsync(
         int width,
         int height,
@@ -326,13 +345,16 @@ public sealed class PhotoFlowTests : IAsyncLifetime
         JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
 
     private static string? ExtractSessionCookie(HttpResponseMessage response)
+        => ExtractCookie(response, "hpn_session");
+
+    private static string? ExtractCookie(HttpResponseMessage response, string name)
     {
         if (!response.Headers.TryGetValues("Set-Cookie", out var cookies))
         {
             return null;
         }
 
-        var header = cookies.FirstOrDefault(c => c.StartsWith("hpn_session=", StringComparison.Ordinal));
+        var header = cookies.FirstOrDefault(c => c.StartsWith($"{name}=", StringComparison.Ordinal));
         return header?.Split(';', 2)[0];
     }
 }

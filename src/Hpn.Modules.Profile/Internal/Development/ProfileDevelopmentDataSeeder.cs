@@ -103,7 +103,8 @@ internal sealed class ProfileDevelopmentDataSeeder(
             minDistanceKm: null,
             womenForWomen: false,
             verifiedOnly: false,
-            paused: false);
+            paused: false,
+            hiddenFromGuests: false);
 
         if (interests.Count > 0)
         {

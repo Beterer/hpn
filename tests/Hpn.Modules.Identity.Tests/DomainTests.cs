@@ -94,3 +94,59 @@ public sealed class SessionTests
         session.ExpiresAt.Should().Be(Now.AddDays(20) + Lifetime);
     }
 }
+
+public sealed class GuestSessionTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
+    private static readonly TimeSpan Lifetime = TimeSpan.FromDays(30);
+
+    [Fact]
+    public void Active_until_expiry_then_inactive()
+    {
+        var session = GuestSession.Start("hash", Now, Lifetime, userAgent: "agent", ip: "127.0.0.1");
+
+        session.IsActive(Now.AddDays(1)).Should().BeTrue();
+        session.IsActive(Now.AddDays(31)).Should().BeFalse();
+        session.Id.Should().NotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public void Revoke_makes_it_inactive_and_is_idempotent()
+    {
+        var session = GuestSession.Start("hash", Now, Lifetime, userAgent: null, ip: null);
+
+        session.Revoke(Now.AddDays(1));
+        var firstRevokedAt = session.RevokedAt;
+        session.Revoke(Now.AddDays(2));
+
+        session.IsActive(Now.AddDays(1)).Should().BeFalse();
+        session.RevokedAt.Should().Be(firstRevokedAt);
+    }
+
+    [Fact]
+    public void Convert_records_member_and_revokes_session()
+    {
+        var session = GuestSession.Start("hash", Now, Lifetime, userAgent: null, ip: null);
+        var userId = Guid.NewGuid();
+
+        session.ConvertTo(userId, Now.AddHours(1));
+
+        session.ConvertedToUserId.Should().Be(userId);
+        session.ConvertedAt.Should().Be(Now.AddHours(1));
+        session.RevokedAt.Should().Be(Now.AddHours(1));
+        session.IsActive(Now.AddHours(2)).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Slides_only_past_the_halfway_point()
+    {
+        var session = GuestSession.Start("hash", Now, Lifetime, userAgent: null, ip: null);
+
+        session.SlideIfDue(Now.AddDays(5), Lifetime).Should().BeFalse();
+
+        var slid = session.SlideIfDue(Now.AddDays(20), Lifetime);
+
+        slid.Should().BeTrue();
+        session.ExpiresAt.Should().Be(Now.AddDays(20) + Lifetime);
+    }
+}

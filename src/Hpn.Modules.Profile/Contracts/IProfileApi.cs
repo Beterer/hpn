@@ -27,6 +27,16 @@ public interface IProfileApi
 
     Task<bool> IsVisibleToAsync(Guid profileId, Guid viewerId, CancellationToken cancellationToken = default);
 
+    /// <summary>Visibility check for a viewer who may be a signed-out guest. When
+    /// <paramref name="enforceGuestRestrictions"/> is true, a profile that opted out of
+    /// guest visibility (<c>hidden_from_guests</c>) is treated as not visible, so the
+    /// opt-out holds on direct photo/appreciation access and not only in the feed.</summary>
+    Task<bool> IsVisibleToAsync(
+        Guid profileId,
+        Guid viewerId,
+        bool enforceGuestRestrictions,
+        CancellationToken cancellationToken = default);
+
     Task<string?> GetStatusAsync(Guid profileId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyCollection<Guid>> GetBlockedByAsync(Guid viewerId, CancellationToken cancellationToken = default);

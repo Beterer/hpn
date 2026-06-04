@@ -9,6 +9,7 @@ namespace Hpn.SharedKernel.RateLimiting;
 public static class RateLimitPolicies
 {
     public const string MagicLink = "magic-link";
+    public const string GuestStart = "guest-start";
     public const string Appreciation = "appreciation";
     public const string Reports = "reports";
     public const string Uploads = "uploads";

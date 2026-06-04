@@ -28,8 +28,8 @@ internal interface IFeedRankingStrategy
 /// here, not reshaping eligibility or the contract (backbone §6.5).
 /// </summary>
 internal sealed record FeedViewerContext(
-    Guid ProfileId,
-    Guid UserId,
-    string Gender,
+    Guid? ProfileId,
+    Guid ActorId,
+    string? Gender,
     string? CountryCode,
     bool Verified);

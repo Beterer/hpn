@@ -9,6 +9,7 @@ internal sealed class VisibilityPreferences
     public bool WomenForWomen { get; private set; }
     public bool VerifiedOnly { get; private set; }
     public bool Paused { get; private set; }
+    public bool HiddenFromGuests { get; private set; }
 
     private VisibilityPreferences()
     {
@@ -23,6 +24,7 @@ internal sealed class VisibilityPreferences
         WomenForWomen = false,
         VerifiedOnly = false,
         Paused = false,
+        HiddenFromGuests = false,
     };
 
     public void Pause() => Paused = true;
@@ -36,7 +38,8 @@ internal sealed class VisibilityPreferences
         int? minDistanceKm,
         bool womenForWomen,
         bool verifiedOnly,
-        bool paused)
+        bool paused,
+        bool hiddenFromGuests)
     {
         ShowOnlyOutsideCountry = showOnlyOutsideCountry;
         HideFromCountry = hideFromCountry;
@@ -44,5 +47,6 @@ internal sealed class VisibilityPreferences
         WomenForWomen = womenForWomen;
         VerifiedOnly = verifiedOnly;
         Paused = paused;
+        HiddenFromGuests = hiddenFromGuests;
     }
 }

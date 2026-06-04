@@ -187,7 +187,7 @@ report count alone, and never an automatic ban (`ADR-016`).
 
 ## 7. Auth & sessions
 
-Passwordless, token-free-on-the-client (`ADR-012`):
+Passwordless, token-free-on-the-client (`ADR-012`, `ADR-024`):
 
 1. `POST /auth/magic-link` issues a single-use, hashed token (~15 min TTL), emailed via
    `IEmailSender` (Resend in prod, captured by Mailpit in dev). Always `202` — no account
@@ -198,6 +198,12 @@ Passwordless, token-free-on-the-client (`ADR-012`):
 3. Sessions are **sliding-expiry (30 days) and revocable**; logout and account deletion
    revoke them immediately. Admin endpoints are gated by an endpoint filter that checks
    `IIdentityApi.IsAdminAsync`.
+4. `POST /guest/start` creates a separate opaque `hpn_guest` session for browsing before
+   signup. Guests are authenticated **actors**, not users: the principal has
+   `hpn:actor_kind=guest` + `hpn:actor_id`, and no `ClaimTypes.NameIdentifier`. The host's
+   default authorization policy remains member-only; Feed and Appreciation opt in to the
+   `guest-or-member` policy. If the guest verifies a magic link, Identity raises
+   `GuestConverted` and Appreciation re-keys sender-owned rows to the new member id.
 
 ## 8. Data model notes
 

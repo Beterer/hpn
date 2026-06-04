@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { verifyMagicLink } from '../../lib/api/auth'
-import { authKeys } from '../../lib/query/auth'
+import { authKeys, clearGuestState } from '../../lib/query/auth'
 import { photoKeys } from '../../lib/query/photos'
 import { profileKeys } from '../../lib/query/profile'
 
@@ -30,6 +30,7 @@ export function VerifyPage() {
 
     verifyMagicLink(token)
       .then(async () => {
+        clearGuestState()
         await queryClient.invalidateQueries({ queryKey: authKeys.me })
         await queryClient.invalidateQueries({ queryKey: profileKeys.mine })
         await queryClient.invalidateQueries({ queryKey: photoKeys.mine })

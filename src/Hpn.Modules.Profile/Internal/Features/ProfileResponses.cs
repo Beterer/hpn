@@ -12,7 +12,8 @@ internal sealed record VisibilityPreferencesResponse(
     int? MinDistanceKm,
     bool WomenForWomen,
     bool VerifiedOnly,
-    bool Paused);
+    bool Paused,
+    bool HiddenFromGuests);
 
 internal sealed record ProfileResponse(
     Guid Id,
@@ -68,7 +69,8 @@ internal static class ProfileResponses
             profile.VisibilityPreferences.MinDistanceKm,
             profile.VisibilityPreferences.WomenForWomen,
             profile.VisibilityPreferences.VerifiedOnly,
-            profile.VisibilityPreferences.Paused));
+            profile.VisibilityPreferences.Paused,
+            profile.VisibilityPreferences.HiddenFromGuests));
 
     public static PublicProfileResponse ToPublicResponse(UserProfile profile) => new(
         profile.Id,

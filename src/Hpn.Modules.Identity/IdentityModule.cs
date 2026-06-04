@@ -11,6 +11,7 @@ using Hpn.Modules.Identity.Internal.Features.GetMe;
 using Hpn.Modules.Identity.Internal.Features.Logout;
 using Hpn.Modules.Identity.Internal.Features.RequestAccountDeletion;
 using Hpn.Modules.Identity.Internal.Features.RequestMagicLink;
+using Hpn.Modules.Identity.Internal.Features.StartGuestSession;
 using Hpn.Modules.Identity.Internal.Features.VerifyMagicLink;
 using Hpn.Modules.Identity.Internal.Persistence;
 using Hpn.SharedKernel.Accounts;
@@ -50,7 +51,9 @@ public static class IdentityModule
 
         services.AddScoped<IIdentityApi, IdentityApi>();
         services.AddScoped<SessionAuthenticator>();
+        services.AddScoped<GuestSessionAuthenticator>();
         services.AddScoped<RequestMagicLinkHandler>();
+        services.AddScoped<StartGuestSessionHandler>();
         services.AddScoped<VerifyMagicLinkHandler>();
         services.AddScoped<GetMeHandler>();
         services.AddScoped<LogoutHandler>();
@@ -80,6 +83,7 @@ public static class IdentityModule
         auth.MapVerifyMagicLink();
         auth.MapLogout();
 
+        endpoints.MapStartGuestSession();
         endpoints.MapGetMe();
 
         // Account settings (§8 Settings, §10.5). Mapped here because Identity owns the

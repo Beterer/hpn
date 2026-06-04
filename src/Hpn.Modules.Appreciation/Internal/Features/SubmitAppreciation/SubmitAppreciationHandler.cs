@@ -70,28 +70,31 @@ internal sealed class SubmitAppreciationHandler(
         string? idempotencyKey,
         CancellationToken cancellationToken)
     {
-        var senderUserId = currentUser.RequireUserId();
+        var senderActorId = currentUser.RequireActorId();
         var normalizedKey = NormalizeIdempotencyKey(idempotencyKey);
         if (normalizedKey is null)
         {
             return SubmitAppreciationResult.Failure(invalidIdempotencyKey: true);
         }
 
-        var replay = await TryReplayAsync(senderUserId, normalizedKey, request, cancellationToken);
+        var replay = await TryReplayAsync(senderActorId, normalizedKey, request, cancellationToken);
         if (replay is not null)
         {
             return replay;
         }
 
-        var senderProfileId = await profileApi.GetProfileIdForUserAsync(senderUserId, cancellationToken);
-        if (senderProfileId is null)
+        if (currentUser.UserId is { } senderUserId)
         {
-            return SubmitAppreciationResult.Failure(profileMissing: true);
-        }
+            var senderProfileId = await profileApi.GetProfileIdForUserAsync(senderUserId, cancellationToken);
+            if (senderProfileId is null)
+            {
+                return SubmitAppreciationResult.Failure(profileMissing: true);
+            }
 
-        if (senderProfileId == request.ReceiverProfileId)
-        {
-            return SubmitAppreciationResult.Failure(selfAppreciation: true);
+            if (senderProfileId == request.ReceiverProfileId)
+            {
+                return SubmitAppreciationResult.Failure(selfAppreciation: true);
+            }
         }
 
         var category = await dbContext.AppreciationCategories
@@ -109,7 +112,8 @@ internal sealed class SubmitAppreciationHandler(
         // visibility-gated only. A profile reachable by id is appreciable.
         var visible = await profileApi.IsVisibleToAsync(
             request.ReceiverProfileId,
-            senderUserId,
+            senderActorId,
+            enforceGuestRestrictions: currentUser.ActorKind == ActorKind.Guest,
             cancellationToken);
         if (!visible)
         {
@@ -130,7 +134,7 @@ internal sealed class SubmitAppreciationHandler(
         var alreadyAppreciated = await dbContext.AppreciationEvents
             .AsNoTracking()
             .AnyAsync(
-                e => e.SenderUserId == senderUserId &&
+                e => e.SenderUserId == senderActorId &&
                      e.ReceiverProfileId == request.ReceiverProfileId &&
                      e.CategoryId == request.CategoryId,
                 cancellationToken);
@@ -141,7 +145,7 @@ internal sealed class SubmitAppreciationHandler(
 
         var now = timeProvider.GetUtcNow();
         var appreciation = AppreciationEvent.Create(
-            senderUserId,
+            senderActorId,
             request.ReceiverProfileId,
             request.CategoryId,
             request.PhotoId,
@@ -168,7 +172,7 @@ internal sealed class SubmitAppreciationHandler(
         {
             await transaction.RollbackAsync(cancellationToken);
             dbContext.Entry(appreciation).State = EntityState.Detached;
-            return await ResolveUniqueViolationAsync(senderUserId, normalizedKey, request, cancellationToken);
+            return await ResolveUniqueViolationAsync(senderActorId, normalizedKey, request, cancellationToken);
         }
 
         var response = ToResponse(appreciation, category.Slug, category.Label, replayed: false);

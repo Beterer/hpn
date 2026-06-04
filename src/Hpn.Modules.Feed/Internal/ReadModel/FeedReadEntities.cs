@@ -30,6 +30,7 @@ internal sealed class FeedVisibilityRow
     public bool WomenForWomen { get; init; }
     public bool VerifiedOnly { get; init; }
     public bool Paused { get; init; }
+    public bool HiddenFromGuests { get; init; }
 }
 
 internal sealed class FeedBlockRow

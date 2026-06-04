@@ -16,5 +16,6 @@ internal sealed class VisibilityPreferencesConfiguration : IEntityTypeConfigurat
         builder.Property(v => v.WomenForWomen).HasDefaultValue(false).IsRequired();
         builder.Property(v => v.VerifiedOnly).HasDefaultValue(false).IsRequired();
         builder.Property(v => v.Paused).HasDefaultValue(false).IsRequired();
+        builder.Property(v => v.HiddenFromGuests).HasDefaultValue(false).IsRequired();
     }
 }

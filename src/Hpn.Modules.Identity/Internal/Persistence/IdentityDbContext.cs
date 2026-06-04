@@ -15,6 +15,7 @@ internal sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> opti
     public DbSet<User> Users => Set<User>();
     public DbSet<MagicLinkToken> MagicLinkTokens => Set<MagicLinkToken>();
     public DbSet<Session> Sessions => Set<Session>();
+    public DbSet<GuestSession> GuestSessions => Set<GuestSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -60,12 +60,26 @@ internal sealed class ProfileApi(ProfileDbContext dbContext) : IProfileApi
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<bool> IsVisibleToAsync(Guid profileId, Guid viewerId, CancellationToken cancellationToken = default)
+    public Task<bool> IsVisibleToAsync(Guid profileId, Guid viewerId, CancellationToken cancellationToken = default) =>
+        IsVisibleToAsync(profileId, viewerId, enforceGuestRestrictions: false, cancellationToken);
+
+    public async Task<bool> IsVisibleToAsync(
+        Guid profileId,
+        Guid viewerId,
+        bool enforceGuestRestrictions,
+        CancellationToken cancellationToken = default)
     {
         var profile = await dbContext.Profiles
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == profileId, cancellationToken);
         if (profile is null)
+        {
+            return false;
+        }
+
+        // A profile that opted out of guest visibility is invisible to signed-out
+        // browsers everywhere, not just in the feed (VisibilityPreferences is AutoInclude).
+        if (enforceGuestRestrictions && profile.VisibilityPreferences.HiddenFromGuests)
         {
             return false;
         }

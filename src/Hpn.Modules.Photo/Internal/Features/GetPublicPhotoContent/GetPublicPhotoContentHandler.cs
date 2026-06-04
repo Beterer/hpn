@@ -31,7 +31,7 @@ internal sealed class GetPublicPhotoContentHandler(
         string? variant,
         CancellationToken cancellationToken)
     {
-        var viewerId = currentUser.RequireUserId();
+        var viewerId = currentUser.RequireActorId();
 
         var photo = await dbContext.Photos
             .AsNoTracking()
@@ -52,7 +52,11 @@ internal sealed class GetPublicPhotoContentHandler(
         // Visibility is Profile's call (active, not paused, no block in either
         // direction). A hidden photo 404s rather than 403s — we never confirm the
         // existence of a profile the viewer may not see.
-        var visible = await profileApi.IsVisibleToAsync(photo.ProfileId, viewerId, cancellationToken);
+        var visible = await profileApi.IsVisibleToAsync(
+            photo.ProfileId,
+            viewerId,
+            enforceGuestRestrictions: currentUser.ActorKind == ActorKind.Guest,
+            cancellationToken);
         if (!visible)
         {
             return new GetPublicPhotoContentResult(null, null, NotFound: true, InvalidVariant: false);

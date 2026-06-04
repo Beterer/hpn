@@ -3,6 +3,7 @@ import { apiFetch } from './client'
 
 export type AuthUser = components['schemas']['AuthUserDto']
 export type Me = components['schemas']['MeResponse']
+export type GuestSession = components['schemas']['StartGuestSessionResponse']
 
 /**
  * Request a magic sign-in link. The API always answers 202 regardless of whether
@@ -33,10 +34,18 @@ export async function verifyMagicLink(token: string): Promise<AuthUser> {
   return (await response.json()) as AuthUser
 }
 
-/** Current account + onboarding state, or null when not signed in (401). */
+export async function startGuestSession(): Promise<GuestSession> {
+  const response = await apiFetch('/guest/start', { method: 'POST' })
+  if (!response.ok) {
+    throw new Error(`Could not start browsing (${response.status}).`)
+  }
+  return (await response.json()) as GuestSession
+}
+
+/** Current account + onboarding state, or null when not signed in as a member. */
 export async function getMe(): Promise<Me | null> {
   const response = await apiFetch('/me')
-  if (response.status === 401) {
+  if (response.status === 401 || response.status === 403) {
     return null
   }
   if (!response.ok) {

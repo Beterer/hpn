@@ -6,4 +6,5 @@ internal sealed record UpdateVisibilitySettingsRequest(
     int? MinDistanceKm,
     bool WomenForWomen,
     bool VerifiedOnly,
-    bool Paused);
+    bool Paused,
+    bool HiddenFromGuests);
