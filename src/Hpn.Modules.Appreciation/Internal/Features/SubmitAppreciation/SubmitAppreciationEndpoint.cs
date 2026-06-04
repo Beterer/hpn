@@ -1,4 +1,5 @@
 using Hpn.SharedKernel.RateLimiting;
+using Hpn.SharedKernel.Auth;
 using Hpn.SharedKernel.Validation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -94,7 +95,7 @@ internal static class SubmitAppreciationEndpoint
                     ? Results.Ok(result.Response)
                     : Results.Created($"/api/v1/appreciations/{result.Response!.Id}", result.Response);
             })
-            .RequireAuthorization()
+            .RequireAuthorization(Policies.GuestOrMember)
             .RequireRateLimiting(RateLimitPolicies.Appreciation)
             .WithValidation<SubmitAppreciationRequest>()
             .WithName("SubmitAppreciation")

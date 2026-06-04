@@ -1,4 +1,7 @@
+import { useState } from 'react'
+import { useGuestSession } from '../../lib/query/auth'
 import { useFeedQueue } from '../../lib/query/feed'
+import { MagicLinkForm } from '../auth/MagicLinkForm'
 import { AppreciationChooser } from './AppreciationChooser'
 import { FeedCard } from './FeedCard'
 
@@ -6,8 +9,31 @@ import { FeedCard } from './FeedCard'
  * The primary appreciation-gated screen (backbone §9.3). The only way to move
  * forward is a successful positive appreciation; there is no skip/dislike path.
  */
-export function FeedScreen() {
+export function FeedScreen({ guest = false }: { guest?: boolean }) {
   const feed = useFeedQueue()
+  const guestSession = useGuestSession()
+  const [guestReactions, setGuestReactions] = useState(() => guestSession.reactionCount())
+  const [lastNudgeDismissedAt, setLastNudgeDismissedAt] = useState(() => guestSession.lastNudgeDismissedAt())
+
+  // A successful appreciation is the only thing that counts toward the signup nudge.
+  const onUnlocked = () => {
+    if (guest) {
+      setGuestReactions(guestSession.recordReaction())
+    }
+    feed.advance()
+  }
+
+  // "Not for me" is the guest escape hatch: move past a profile without appreciating it
+  // (the feed queue already remembers it as seen). It is not a reaction, so it does not
+  // count toward the nudge.
+  const skipProfile = () => {
+    feed.advance()
+  }
+
+  const dismissNudge = () => {
+    guestSession.dismissNudge(guestReactions)
+    setLastNudgeDismissedAt(guestReactions)
+  }
 
   if (feed.status === 'loading') {
     return <CenteredNote>Finding people to notice…</CenteredNote>
@@ -49,9 +75,42 @@ export function FeedScreen() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-8">
       <FeedCard key={feed.current.profileId} profile={feed.current} />
-      <AppreciationChooser key={feed.current.profileId} profile={feed.current} onUnlocked={feed.advance} />
+      {guest && (
+        <button
+          type="button"
+          onClick={skipProfile}
+          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-500"
+        >
+          Not for me
+        </button>
+      )}
+      <AppreciationChooser key={feed.current.profileId} profile={feed.current} onUnlocked={onUnlocked} />
+      {guest && guestSession.shouldShowNudge(guestReactions, lastNudgeDismissedAt) && (
+        <div className="fixed inset-0 z-20 flex items-end bg-zinc-950/30 px-4 pb-4 sm:items-center sm:justify-center sm:p-6">
+          <section className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
+            <h2 className="text-lg font-semibold text-zinc-950">Keep your appreciations</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-600">
+              Sign in to carry this browsing session into your account.
+            </p>
+            <div className="mt-4">
+              <MagicLinkNudge />
+            </div>
+            <button
+              type="button"
+              onClick={dismissNudge}
+              className="mt-4 w-full rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Keep browsing
+            </button>
+          </section>
+        </div>
+      )}
     </main>
   )
+}
+
+function MagicLinkNudge() {
+  return <div className="[&_p]:text-sm"><MagicLinkForm /></div>
 }
 
 function CenteredNote({ children }: { children: React.ReactNode }) {

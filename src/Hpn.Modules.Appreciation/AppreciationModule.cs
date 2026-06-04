@@ -40,6 +40,7 @@ public static class AppreciationModule
         services.AddScoped<IDevelopmentDataSeeder, AppreciationDevelopmentDataSeeder>();
         services.AddScoped<IAppreciationApi, AppreciationApi>();
         services.AddScoped<IDomainEventHandler<AppreciationCreated>, AppreciationCounterProjectionHandler>();
+        services.AddScoped<IDomainEventHandler<GuestConverted>, GuestConvertedAppreciationHandler>();
         services.AddScoped<GetAppreciationCategoriesHandler>();
         services.AddScoped<GetAppreciationStyleHandler>();
         services.AddScoped<GetReceivedAppreciationHandler>();

@@ -1,4 +1,5 @@
 using Hpn.Modules.Appreciation.Contracts.Dtos;
+using Hpn.SharedKernel.Auth;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -16,7 +17,7 @@ internal static class GetAppreciationCategoriesEndpoint
                 var categories = await handler.HandleAsync(cancellationToken);
                 return Results.Ok(categories);
             })
-            .RequireAuthorization()
+            .RequireAuthorization(Policies.GuestOrMember)
             .WithName("GetAppreciationCategories")
             .WithSummary("List the fixed seeded appreciation categories.")
             .WithTags("Appreciation")

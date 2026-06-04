@@ -13,6 +13,7 @@ using Hpn.SharedKernel;
 using Hpn.SharedKernel.Auth;
 using Hpn.SharedKernel.Events;
 using Hpn.SharedKernel.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -61,7 +62,24 @@ try
     // the host exposes the current principal to every module (backbone §11).
     services.AddHttpContextAccessor();
     services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
-    services.AddAuthorization();
+    services.AddAuthorization(options =>
+    {
+        options.DefaultPolicy = new AuthorizationPolicyBuilder()
+            .RequireAssertion(context => context.User.FindFirstValue(ClaimTypes.NameIdentifier) is not null)
+            .Build();
+
+        options.AddPolicy(Policies.GuestOrMember, policy =>
+            policy.RequireAssertion(context =>
+                context.User.FindFirstValue(ClaimTypes.NameIdentifier) is not null ||
+                string.Equals(
+                    context.User.FindFirstValue(ActorClaims.KindClaimType),
+                    ActorClaims.MemberKindValue,
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    context.User.FindFirstValue(ActorClaims.KindClaimType),
+                    ActorClaims.GuestKindValue,
+                    StringComparison.Ordinal)));
+    });
 
     services.AddRateLimiter(options =>
     {
@@ -77,12 +95,22 @@ try
                     PermitLimit = 5,
                     Window = TimeSpan.FromMinutes(15),
                 }));
+        // Guest-session minting is per-IP to slow mass anonymous session creation.
+        options.AddPolicy(RateLimitPolicies.GuestStart, httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 20,
+                    Window = TimeSpan.FromMinutes(15),
+                }));
         // Appreciation submits are budgeted per authenticated user (backbone §10.6),
         // not globally — one member must never be able to exhaust everyone's budget.
-        // The limiter runs after authentication, so the principal carries the user id.
+        // The limiter runs after authentication, so the principal carries the actor id.
         options.AddPolicy(RateLimitPolicies.Appreciation, httpContext =>
             RateLimitPartition.GetFixedWindowLimiter(
                 partitionKey: httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? httpContext.User.FindFirstValue(ActorClaims.IdClaimType)
                     ?? httpContext.Connection.RemoteIpAddress?.ToString()
                     ?? "anonymous",
                 factory: _ => new FixedWindowRateLimiterOptions

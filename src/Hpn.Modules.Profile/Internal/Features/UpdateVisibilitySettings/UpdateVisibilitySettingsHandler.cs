@@ -63,7 +63,8 @@ internal sealed class UpdateVisibilitySettingsHandler(
             request.MinDistanceKm,
             request.WomenForWomen,
             request.VerifiedOnly,
-            request.Paused);
+            request.Paused,
+            request.HiddenFromGuests);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -75,7 +76,8 @@ internal sealed class UpdateVisibilitySettingsHandler(
                 prefs.MinDistanceKm,
                 prefs.WomenForWomen,
                 prefs.VerifiedOnly,
-                prefs.Paused),
+                prefs.Paused,
+                prefs.HiddenFromGuests),
             ProfileMissing: false,
             FailedRequirement: null);
     }

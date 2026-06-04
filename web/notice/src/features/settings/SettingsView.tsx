@@ -16,6 +16,7 @@ type VisibilityForm = {
   womenForWomen: boolean
   verifiedOnly: boolean
   paused: boolean
+  hiddenFromGuests: boolean
 }
 
 /**
@@ -32,6 +33,7 @@ export function SettingsView({ profile }: { profile: Profile }) {
     womenForWomen: prefs.womenForWomen,
     verifiedOnly: prefs.verifiedOnly,
     paused: prefs.paused,
+    hiddenFromGuests: prefs.hiddenFromGuests,
   })
 
   const visibility = useUpdateVisibility()
@@ -52,6 +54,7 @@ export function SettingsView({ profile }: { profile: Profile }) {
       womenForWomen: form.womenForWomen,
       verifiedOnly: form.verifiedOnly,
       paused: form.paused,
+      hiddenFromGuests: form.hiddenFromGuests,
     })
   }
 
@@ -125,6 +128,11 @@ export function SettingsView({ profile }: { profile: Profile }) {
           label="Only connect with verified people"
           checked={form.verifiedOnly}
           onChange={(v) => setForm((f) => ({ ...f, verifiedOnly: v }))}
+        />
+        <Toggle
+          label="Hide me from guest browsing"
+          checked={form.hiddenFromGuests}
+          onChange={(v) => setForm((f) => ({ ...f, hiddenFromGuests: v }))}
         />
 
         <label className="flex flex-col gap-1 text-sm text-zinc-700">

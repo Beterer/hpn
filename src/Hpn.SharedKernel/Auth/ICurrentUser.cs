@@ -8,6 +8,12 @@ namespace Hpn.SharedKernel.Auth;
 /// </summary>
 public interface ICurrentUser
 {
+    /// <summary>The authenticated actor kind: a member, a guest, or no actor.</summary>
+    ActorKind ActorKind { get; }
+
+    /// <summary>The member user id or guest id, or <c>null</c> for anonymous requests.</summary>
+    Guid? ActorId { get; }
+
     /// <summary>The authenticated user's id, or <c>null</c> for anonymous requests.</summary>
     Guid? UserId { get; }
 
@@ -19,4 +25,7 @@ public interface ICurrentUser
 
     /// <summary>The authenticated user's id, or throws if the request is anonymous.</summary>
     Guid RequireUserId();
+
+    /// <summary>The authenticated actor's id, or throws if the request is anonymous.</summary>
+    Guid RequireActorId();
 }

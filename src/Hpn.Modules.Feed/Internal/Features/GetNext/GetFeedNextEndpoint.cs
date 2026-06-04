@@ -17,12 +17,13 @@ internal static class GetFeedNextEndpoint
                 GetFeedNextHandler handler,
                 CancellationToken cancellationToken) =>
             {
-                var viewerUserId = currentUser.RequireUserId();
                 var seenIds = ParseSeen(seen);
-                var batch = await handler.HandleAsync(viewerUserId, limit, seenIds, cancellationToken);
+                var batch = currentUser.UserId is { } viewerUserId
+                    ? await handler.HandleAsync(viewerUserId, limit, seenIds, cancellationToken)
+                    : await handler.HandleForGuestAsync(currentUser.RequireActorId(), limit, seenIds, cancellationToken);
                 return Results.Ok(batch);
             })
-            .RequireAuthorization()
+            .RequireAuthorization(Policies.GuestOrMember)
             .WithName("GetFeedNext")
             .WithSummary("The next batch of eligible profiles for the current viewer.")
             .WithDescription(

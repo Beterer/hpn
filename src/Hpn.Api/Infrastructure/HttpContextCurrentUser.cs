@@ -12,6 +12,38 @@ internal sealed class HttpContextCurrentUser(IHttpContextAccessor httpContextAcc
 {
     private ClaimsPrincipal? Principal => httpContextAccessor.HttpContext?.User;
 
+    public ActorKind ActorKind
+    {
+        get
+        {
+            var kind = Principal?.FindFirstValue(ActorClaims.KindClaimType);
+            if (string.Equals(kind, ActorClaims.GuestKindValue, StringComparison.Ordinal))
+            {
+                return ActorKind.Guest;
+            }
+
+            if (string.Equals(kind, ActorClaims.MemberKindValue, StringComparison.Ordinal) || UserId is not null)
+            {
+                return ActorKind.Member;
+            }
+
+            return ActorKind.None;
+        }
+    }
+
+    public Guid? ActorId
+    {
+        get
+        {
+            if (UserId is { } userId)
+            {
+                return userId;
+            }
+
+            return Guid.TryParse(Principal?.FindFirstValue(ActorClaims.IdClaimType), out var id) ? id : null;
+        }
+    }
+
     public Guid? UserId =>
         Guid.TryParse(Principal?.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
 
@@ -21,4 +53,7 @@ internal sealed class HttpContextCurrentUser(IHttpContextAccessor httpContextAcc
 
     public Guid RequireUserId() =>
         UserId ?? throw new InvalidOperationException("No authenticated user on the current request.");
+
+    public Guid RequireActorId() =>
+        ActorId ?? throw new InvalidOperationException("No authenticated actor on the current request.");
 }

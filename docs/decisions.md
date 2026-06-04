@@ -413,6 +413,42 @@ cursor-based.
 **Alternatives:** Per-project versions (rejected: drift); offset pagination (rejected:
 unstable under inserts).
 
+### ADR-024 — Guest actors can browse and appreciate before signup
+**Status:** Accepted.
+**Context:** The appreciation-gated feed has no skip/dislike action; advancing requires a
+positive appreciation. Requiring email and profile setup before anyone can even browse
+adds friction and hides the product loop from curious visitors.
+**Decision:** Support a true guest actor: `POST /guest/start` mints an opaque,
+server-side, revocable `hpn_guest` session. A guest principal carries only
+`hpn:actor_kind=guest` and `hpn:actor_id=<guest id>`; it deliberately has no
+`ClaimTypes.NameIdentifier`, so member-only endpoints stay member-only through the
+default authorization policy. Feed and Appreciation opt in to `guest-or-member`.
+Guest appreciations count fully and immediately in `appreciation_events`,
+`received_appreciation_stats`, and `given_appreciation_stats`, using the guest id as the
+sender id. Profile adds `hidden_from_guests` as a default-false visibility opt-out,
+honoured only by the guest feed path. When a guest verifies a magic link while holding the
+guest cookie, Identity raises `GuestConverted`; Appreciation re-keys guest sender rows to
+the member id, resolves unique collisions by keeping existing member events, and merges
+given counters. Guest "not interested" remains client-side via the existing `seen` feed
+parameter; Feed still owns no tables.
+**Rationale:** Guests get the real product loop without turning into anonymous fake users.
+The separate actor model keeps the safety boundary obvious: `UserId` means member, while
+`ActorId` means member-or-guest only in endpoints that explicitly accept it. Counting
+guest appreciations preserves recipient value and avoids a shadow/non-counting experience.
+Server-side sessions give revocation, sliding expiry, and per-guest rate limiting without
+introducing Redis or a new token model. Keeping hides in the client-side `seen` list avoids
+creating a Feed-owned table for ephemeral guest preference.
+**Consequences:** Default authorization is intentionally member-only; any endpoint that
+should accept guests must say so with `guest-or-member`. Abuse controls for guests are
+session revocation, `/guest/start` per-IP rate limiting, and per-actor appreciation rate
+limiting; guest reporting and durable cross-device guest hides are deferred. Conversion
+has a collision edge when an existing member also reacted as a guest, covered by the
+Appreciation re-key handler and integration tests.
+**Alternatives:** Anonymous stateless tokens (rejected: not revocable/rate-limitable
+enough for reactions that count); require signup before reacting (rejected: defeats the
+adoption goal and feed mechanic); a Feed-owned guest hides table (rejected: durable hides
+are not needed for v1 and would violate Feed's table-less posture).
+
 ---
 
 ## Deferred (chosen not to build yet)

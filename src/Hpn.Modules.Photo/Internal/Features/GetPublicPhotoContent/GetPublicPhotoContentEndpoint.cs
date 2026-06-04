@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Hpn.SharedKernel.Auth;
 
 namespace Hpn.Modules.Photo.Internal.Features.GetPublicPhotoContent;
 
@@ -35,7 +36,7 @@ internal static class GetPublicPhotoContentEndpoint
                 response.Headers.CacheControl = "private, max-age=3600, immutable";
                 return Results.File(result.Content, result.ContentType);
             })
-            .RequireAuthorization()
+            .RequireAuthorization(Policies.GuestOrMember)
             .WithName("GetPublicPhotoContent")
             .WithSummary("Read a visibility-checked profile photo variant for the feed.")
             .WithTags("Photos")

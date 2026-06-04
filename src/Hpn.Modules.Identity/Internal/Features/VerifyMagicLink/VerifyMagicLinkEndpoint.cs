@@ -18,9 +18,11 @@ internal static class VerifyMagicLinkEndpoint
             {
                 var userAgent = httpContext.Request.Headers.UserAgent.ToString();
                 var ip = httpContext.Connection.RemoteIpAddress?.ToString();
+                httpContext.Request.Cookies.TryGetValue(GuestCookie.Name, out var guestToken);
 
                 var result = await handler.HandleAsync(
                     request,
+                    guestToken,
                     string.IsNullOrWhiteSpace(userAgent) ? null : userAgent,
                     ip,
                     cancellationToken);
@@ -35,6 +37,11 @@ internal static class VerifyMagicLinkEndpoint
                 }
 
                 SessionCookie.Append(httpContext.Response, result.SessionToken, result.ExpiresAt);
+                if (result.ConvertedGuest)
+                {
+                    GuestCookie.Delete(httpContext.Response);
+                }
+
                 return Results.Ok(result.User);
             })
             .AllowAnonymous()

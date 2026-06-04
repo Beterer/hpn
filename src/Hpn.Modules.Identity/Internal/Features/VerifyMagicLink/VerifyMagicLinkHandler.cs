@@ -1,13 +1,17 @@
 using Hpn.Modules.Identity.Internal.Domain;
+using Hpn.Modules.Identity.Internal.Auth;
 using Hpn.Modules.Identity.Internal.Persistence;
 using Hpn.Modules.Identity.Internal.Security;
+using Hpn.SharedKernel.Accounts;
+using Hpn.SharedKernel.Events;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Hpn.Modules.Identity.Internal.Features.VerifyMagicLink;
 
 /// <summary>Outcome of a successful verification: the user plus the freshly minted session secret.</summary>
-internal sealed record VerifySuccess(AuthUserDto User, string SessionToken, DateTimeOffset ExpiresAt);
+internal sealed record VerifySuccess(AuthUserDto User, string SessionToken, DateTimeOffset ExpiresAt, bool ConvertedGuest);
 
 /// <summary>
 /// Consumes a magic-link token and opens a server-side session (backbone §10.1).
@@ -17,13 +21,17 @@ internal sealed record VerifySuccess(AuthUserDto User, string SessionToken, Date
 /// </summary>
 internal sealed class VerifyMagicLinkHandler(
     IdentityDbContext dbContext,
+    GuestSessionAuthenticator guestAuthenticator,
+    IDomainEventDispatcher eventDispatcher,
     TimeProvider timeProvider,
+    ILogger<VerifyMagicLinkHandler> logger,
     IOptions<IdentityOptions> options)
 {
     private readonly IdentityOptions _options = options.Value;
 
     public async Task<VerifySuccess?> HandleAsync(
         VerifyMagicLinkRequest request,
+        string? guestToken,
         string? userAgent,
         string? ip,
         CancellationToken cancellationToken)
@@ -53,7 +61,33 @@ internal sealed class VerifyMagicLinkHandler(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        var convertedGuest = false;
+        var guestSession = await guestAuthenticator.FindActiveSessionAsync(guestToken, cancellationToken);
+        if (guestSession is not null)
+        {
+            // Revoke the guest session first so it can never keep accruing appreciations
+            // under the old actor id, then attempt carryover. The magic-link token is
+            // already consumed, so carryover is best-effort: a failure in the cross-module
+            // re-key must never fail the login (it would burn the token with no session).
+            guestSession.ConvertTo(user.Id, now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            convertedGuest = true;
+
+            try
+            {
+                await eventDispatcher.DispatchAsync(new GuestConverted(guestSession.Id, user.Id, now), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Guest appreciation carryover failed for guest {GuestId} converting to user {UserId}.",
+                    guestSession.Id,
+                    user.Id);
+            }
+        }
+
         var dto = new AuthUserDto(user.Id, user.Email, user.Role.ToString().ToLowerInvariant());
-        return new VerifySuccess(dto, sessionToken, session.ExpiresAt);
+        return new VerifySuccess(dto, sessionToken, session.ExpiresAt, convertedGuest);
     }
 }
