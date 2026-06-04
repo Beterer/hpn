@@ -17,7 +17,7 @@ internal sealed record SubmitAppreciationResult(
     bool ProfileMissing,
     bool SelfAppreciation,
     bool ReceiverNotVisible,
-    bool CategoryMissing,
+    bool TraitMissing,
     bool PhotoMismatch,
     bool IdempotencyConflict,
     bool Duplicate)
@@ -30,7 +30,7 @@ internal sealed record SubmitAppreciationResult(
             ProfileMissing: false,
             SelfAppreciation: false,
             ReceiverNotVisible: false,
-            CategoryMissing: false,
+            TraitMissing: false,
             PhotoMismatch: false,
             IdempotencyConflict: false,
             Duplicate: false);
@@ -40,7 +40,7 @@ internal sealed record SubmitAppreciationResult(
         bool profileMissing = false,
         bool selfAppreciation = false,
         bool receiverNotVisible = false,
-        bool categoryMissing = false,
+        bool traitMissing = false,
         bool photoMismatch = false,
         bool idempotencyConflict = false,
         bool duplicate = false) =>
@@ -51,11 +51,21 @@ internal sealed record SubmitAppreciationResult(
             ProfileMissing: profileMissing,
             SelfAppreciation: selfAppreciation,
             ReceiverNotVisible: receiverNotVisible,
-            CategoryMissing: categoryMissing,
+            TraitMissing: traitMissing,
             PhotoMismatch: photoMismatch,
             IdempotencyConflict: idempotencyConflict,
             Duplicate: duplicate);
 }
+
+// A trait joined with the category it belongs to — the labels the response and
+// the AppreciationCreated event carry, plus the denormalized category id.
+internal sealed record ResolvedTrait(
+    Guid TraitId,
+    string TraitSlug,
+    string TraitLabel,
+    Guid CategoryId,
+    string CategorySlug,
+    string CategoryLabel);
 
 internal sealed class SubmitAppreciationHandler(
     AppreciationDbContext dbContext,
@@ -97,12 +107,13 @@ internal sealed class SubmitAppreciationHandler(
             }
         }
 
-        var category = await dbContext.AppreciationCategories
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.Active, cancellationToken);
-        if (category is null)
+        // The client picks a trait; the category is derived from it (ADR-025) and
+        // denormalized onto the event so the category-level projections and the
+        // duplicate guard keep working.
+        var trait = await ResolveTraitAsync(request.TraitId, activeOnly: true, cancellationToken);
+        if (trait is null)
         {
-            return SubmitAppreciationResult.Failure(categoryMissing: true);
+            return SubmitAppreciationResult.Failure(traitMissing: true);
         }
 
         // Visibility (active, not paused, no block in either direction) is the
@@ -136,7 +147,7 @@ internal sealed class SubmitAppreciationHandler(
             .AnyAsync(
                 e => e.SenderUserId == senderActorId &&
                      e.ReceiverProfileId == request.ReceiverProfileId &&
-                     e.CategoryId == request.CategoryId,
+                     e.CategoryId == trait.CategoryId,
                 cancellationToken);
         if (alreadyAppreciated)
         {
@@ -147,7 +158,8 @@ internal sealed class SubmitAppreciationHandler(
         var appreciation = AppreciationEvent.Create(
             senderActorId,
             request.ReceiverProfileId,
-            request.CategoryId,
+            trait.CategoryId,
+            trait.TraitId,
             request.PhotoId,
             normalizedKey,
             now);
@@ -163,6 +175,7 @@ internal sealed class SubmitAppreciationHandler(
                     appreciation.SenderUserId,
                     appreciation.ReceiverProfileId,
                     appreciation.CategoryId,
+                    appreciation.TraitId,
                     appreciation.PhotoId,
                     appreciation.CreatedAt),
                 cancellationToken);
@@ -172,12 +185,29 @@ internal sealed class SubmitAppreciationHandler(
         {
             await transaction.RollbackAsync(cancellationToken);
             dbContext.Entry(appreciation).State = EntityState.Detached;
-            return await ResolveUniqueViolationAsync(senderActorId, normalizedKey, request, cancellationToken);
+            return await ResolveUniqueViolationAsync(senderActorId, normalizedKey, request, trait, cancellationToken);
         }
 
-        var response = ToResponse(appreciation, category.Slug, category.Label, replayed: false);
+        var response = ToResponse(appreciation, trait, replayed: false);
         return SubmitAppreciationResult.FromResponse(response, replayed: false);
     }
+
+    // activeOnly gates the write path (you cannot react with a retired trait);
+    // the replay/read path looks one up regardless of active state so an old
+    // appreciation still renders if a trait is ever deactivated.
+    private async Task<ResolvedTrait?> ResolveTraitAsync(
+        Guid traitId,
+        bool activeOnly,
+        CancellationToken cancellationToken) =>
+        await dbContext.AppreciationTraits
+            .AsNoTracking()
+            .Where(t => t.Id == traitId && (!activeOnly || t.Active))
+            .Join(
+                dbContext.AppreciationCategories.AsNoTracking(),
+                t => t.CategoryId,
+                c => c.Id,
+                (t, c) => new ResolvedTrait(t.Id, t.Slug, t.Label, c.Id, c.Slug, c.Label))
+            .FirstOrDefaultAsync(cancellationToken);
 
     private async Task<SubmitAppreciationResult?> TryReplayAsync(
         Guid senderUserId,
@@ -195,17 +225,15 @@ internal sealed class SubmitAppreciationHandler(
             return null;
         }
 
-        if (!existing.MatchesRequest(request.ReceiverProfileId, request.CategoryId, request.PhotoId))
+        if (!existing.MatchesRequest(request.ReceiverProfileId, request.TraitId, request.PhotoId))
         {
             return SubmitAppreciationResult.Failure(idempotencyConflict: true);
         }
 
-        var category = await dbContext.AppreciationCategories
-            .AsNoTracking()
-            .FirstAsync(c => c.Id == existing.CategoryId, cancellationToken);
+        var trait = await ResolveTraitAsync(existing.TraitId, activeOnly: false, cancellationToken);
 
         return SubmitAppreciationResult.FromResponse(
-            ToResponse(existing, category.Slug, category.Label, replayed: true),
+            ToResponse(existing, trait!, replayed: true),
             replayed: true);
     }
 
@@ -213,6 +241,7 @@ internal sealed class SubmitAppreciationHandler(
         Guid senderUserId,
         string idempotencyKey,
         SubmitAppreciationRequest request,
+        ResolvedTrait trait,
         CancellationToken cancellationToken)
     {
         var replay = await TryReplayAsync(senderUserId, idempotencyKey, request, cancellationToken);
@@ -226,7 +255,7 @@ internal sealed class SubmitAppreciationHandler(
             .AnyAsync(
                 e => e.SenderUserId == senderUserId &&
                      e.ReceiverProfileId == request.ReceiverProfileId &&
-                     e.CategoryId == request.CategoryId,
+                     e.CategoryId == trait.CategoryId,
                 cancellationToken);
 
         return duplicate
@@ -236,15 +265,17 @@ internal sealed class SubmitAppreciationHandler(
 
     private static SubmitAppreciationResponse ToResponse(
         AppreciationEvent appreciation,
-        string categorySlug,
-        string categoryLabel,
+        ResolvedTrait trait,
         bool replayed) =>
         new(
             appreciation.Id,
             appreciation.ReceiverProfileId,
-            appreciation.CategoryId,
-            categorySlug,
-            categoryLabel,
+            trait.CategoryId,
+            trait.CategorySlug,
+            trait.CategoryLabel,
+            trait.TraitId,
+            trait.TraitSlug,
+            trait.TraitLabel,
             appreciation.PhotoId,
             appreciation.CreatedAt,
             replayed,

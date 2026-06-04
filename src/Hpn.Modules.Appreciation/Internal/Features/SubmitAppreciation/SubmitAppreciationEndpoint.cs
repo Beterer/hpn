@@ -55,13 +55,13 @@ internal static class SubmitAppreciationEndpoint
                         type: "https://hpn.dev/problems/profile-unavailable");
                 }
 
-                if (result.CategoryMissing)
+                if (result.TraitMissing)
                 {
                     return Results.Problem(
-                        title: "Unknown appreciation category",
-                        detail: "Choose one of the active appreciation categories.",
+                        title: "Unknown appreciation trait",
+                        detail: "Choose one of the active appreciation traits.",
                         statusCode: StatusCodes.Status400BadRequest,
-                        type: "https://hpn.dev/problems/appreciation-category-required");
+                        type: "https://hpn.dev/problems/appreciation-trait-required");
                 }
 
                 if (result.PhotoMismatch)

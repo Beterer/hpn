@@ -9,35 +9,17 @@ internal static class FingerprintPhrasing
 
     public static string ForCategory(string slug, string label) => slug switch
     {
-        "warm_smile" => "People often perceive warmth in your expression.",
+        "physical" => "People often perceive a warmth in how you come across.",
+        "energy" => "People often perceive your energy.",
+        "style" => "People often notice your sense of style.",
+        "humor" => "People often perceive your humor.",
+        "mind" => "People often perceive a thoughtful mind.",
         "authentic" => "People often perceive you as genuine.",
-        "stylish" => "People often notice your sense of style.",
-        "calming_energy" => "People often perceive a calming presence.",
-        "confident" => "People often perceive quiet confidence.",
-        "expressive" => "People often notice expressive energy.",
-        "fun_energy" => "People often perceive a playful spark.",
-        "elegant" => "People often notice an elegant quality.",
-        "trustworthy" => "People often perceive trustworthiness.",
-        "creative" => "People often perceive a creative spark.",
-        "kind" => "People often perceive kindness.",
-        "intelligent" => "People often perceive thoughtfulness.",
         _ => $"People often perceive {label.ToLowerInvariant()} in you.",
     };
 
-    public static string ForTrait(string slug, string label) => slug switch
-    {
-        "warm_smile" => "Warmth is one of the recurring ways people perceive you.",
-        "authentic" => "A genuine quality appears often in how people perceive you.",
-        "stylish" => "Style appears often in how people notice you.",
-        "calming_energy" => "A calming presence appears often in how people perceive you.",
-        "confident" => "Quiet confidence appears often in how people perceive you.",
-        "expressive" => "Expressiveness appears often in how people notice you.",
-        "fun_energy" => "Fun energy appears often in how people perceive you.",
-        "elegant" => "Elegance appears often in how people notice you.",
-        "trustworthy" => "Trustworthiness appears often in how people perceive you.",
-        "creative" => "Creativity appears often in how people perceive you.",
-        "kind" => "Kindness appears often in how people perceive you.",
-        "intelligent" => "Thoughtfulness appears often in how people perceive you.",
-        _ => $"{label} appears often in how people perceive you.",
-    };
+    // Trait-level (ADR-025): a specific named trait, phrased as perception. Always
+    // "perceive", never a count or rank.
+    public static string ForTrait(string label) =>
+        $"“{label}” is one of the recurring ways people perceive you.";
 }

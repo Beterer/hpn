@@ -53,6 +53,7 @@ public sealed class DevelopmentSeedFlowTests : IAsyncLifetime
         var cards = feed.RootElement.EnumerateArray().ToArray();
         cards.Should().NotBeEmpty();
         cards.Select(c => c.GetProperty("displayName").GetString()).Should().NotContain("Test Notice");
+        cards.Should().OnlyContain(c => c.GetProperty("interests").GetArrayLength() > 0);
         cards.Should().OnlyContain(c => c.GetProperty("photos").GetArrayLength() > 0);
 
         var firstCard = cards[0];
@@ -63,13 +64,14 @@ public sealed class DevelopmentSeedFlowTests : IAsyncLifetime
         (await photoResponse.Content.ReadAsByteArrayAsync(Ct)).Should().NotBeEmpty();
 
         var categories = await GetCategoriesAsync(client);
-        var categoryId = categories.RootElement.EnumerateArray().First().GetProperty("id").GetGuid();
+        var traitId = categories.RootElement.EnumerateArray().First()
+            .GetProperty("traits").EnumerateArray().First().GetProperty("id").GetGuid();
         using var submit = new HttpRequestMessage(HttpMethod.Post, "/api/v1/appreciations")
         {
             Content = JsonContent.Create(new
             {
                 receiverProfileId = firstCard.GetProperty("profileId").GetGuid(),
-                categoryId,
+                traitId,
                 photoId = firstPhoto.GetProperty("photoId").GetGuid(),
             }),
         };

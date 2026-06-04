@@ -54,8 +54,9 @@ internal sealed class GetMyFingerprintHandler(
         }
 
         var categories = await appreciationApi.GetCategoriesAsync(cancellationToken);
+        var traitSummary = await appreciationApi.GetReceivedTraitSummaryAsync(profileId.Value, cancellationToken);
         var distribution = FingerprintDistribution.Build(summary, categories);
-        var topTraits = FingerprintDistribution.TopTraits(summary, categories);
+        var topTraits = FingerprintDistribution.TopTraits(traitSummary, summary.Total);
         var now = timeProvider.GetUtcNow();
         var periodStart = GetWeekStart(now);
 

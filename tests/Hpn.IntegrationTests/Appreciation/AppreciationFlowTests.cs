@@ -45,7 +45,7 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
         var viewer = await CreateActiveParticipantAsync("appr-viewer@example.com");
         var target = await CreateActiveParticipantAsync("appr-target@example.com");
         var next = await CreateActiveParticipantAsync("appr-next@example.com");
-        var category = (await GetCategoriesAsync(viewer.Client)).Single(c => c.Slug == "warm_smile");
+        var trait = await GetTraitAsync(viewer.Client, "warm_smile");
 
         var initialFeed = await GetFeedAsync(viewer.Client);
         initialFeed.Should().Contain(target.ProfileId);
@@ -53,14 +53,15 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
         var submitted = await SubmitAsync(
             viewer.Client,
             target.ProfileId,
-            category.Id,
+            trait.Id,
             target.PhotoId,
             "submit-updates-counters");
 
         submitted.StatusCode.Should().Be(HttpStatusCode.Created);
         var body = await ReadJsonAsync(submitted);
         body.GetProperty("receiverProfileId").GetGuid().Should().Be(target.ProfileId);
-        body.GetProperty("categoryLabel").GetString().Should().Be("Warm smile");
+        body.GetProperty("categoryLabel").GetString().Should().Be("Physical");
+        body.GetProperty("traitLabel").GetString().Should().Be("Warm smile");
         body.GetProperty("replayed").GetBoolean().Should().BeFalse();
         body.GetProperty("nextProfileUnlocked").GetBoolean().Should().BeTrue();
 
@@ -69,7 +70,7 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
             p =>
             {
                 p.AddWithValue("profile", target.ProfileId);
-                p.AddWithValue("category", category.Id);
+                p.AddWithValue("category", trait.CategoryId);
             });
         receivedCount.Should().Be(1);
 
@@ -78,7 +79,7 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
             p =>
             {
                 p.AddWithValue("sender", viewer.UserId);
-                p.AddWithValue("category", category.Id);
+                p.AddWithValue("category", trait.CategoryId);
             });
         givenCount.Should().Be(1);
 
@@ -92,9 +93,10 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
     {
         var viewer = await CreateActiveParticipantAsync("idem-viewer@example.com");
         var target = await CreateActiveParticipantAsync("idem-target@example.com");
-        var categories = await GetCategoriesAsync(viewer.Client);
-        var first = categories[0];
-        var second = categories[1];
+        // first and second sit in different categories, so re-using the key on second
+        // surfaces the idempotency conflict rather than the per-category duplicate guard.
+        var first = await GetTraitAsync(viewer.Client, "warm_smile");
+        var second = await GetTraitAsync(viewer.Client, "good_vibe");
 
         var created = await SubmitAsync(viewer.Client, target.ProfileId, first.Id, target.PhotoId, "same-key");
         created.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -114,7 +116,7 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
             p =>
             {
                 p.AddWithValue("profile", target.ProfileId);
-                p.AddWithValue("category", first.Id);
+                p.AddWithValue("category", first.CategoryId);
             });
         receivedCount.Should().Be(1);
     }
@@ -124,12 +126,12 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
     {
         var viewer = await CreateActiveParticipantAsync("reject-viewer@example.com");
         var draft = await CreateDraftParticipantAsync("reject-draft@example.com");
-        var category = (await GetCategoriesAsync(viewer.Client))[0];
+        var trait = await GetTraitAsync(viewer.Client, "warm_smile");
 
-        var self = await SubmitAsync(viewer.Client, viewer.ProfileId, category.Id, viewer.PhotoId, "self-key");
+        var self = await SubmitAsync(viewer.Client, viewer.ProfileId, trait.Id, viewer.PhotoId, "self-key");
         self.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
-        var invisible = await SubmitAsync(viewer.Client, draft.ProfileId, category.Id, null, "invisible-key");
+        var invisible = await SubmitAsync(viewer.Client, draft.ProfileId, trait.Id, null, "invisible-key");
         invisible.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -140,15 +142,16 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
         var senderOne = await CreateActiveParticipantAsync("received-sender-one@example.com");
         var senderTwo = await CreateActiveParticipantAsync("received-sender-two@example.com");
         var senderThree = await CreateActiveParticipantAsync("received-sender-three@example.com");
-        var categories = await GetCategoriesAsync(target.Client);
-        var warmSmile = categories.Single(c => c.Slug == "warm_smile");
-        var creative = categories.Single(c => c.Slug == "creative");
+        // warm_smile (physical) twice, good_vibe (energy) once — trait-level cards
+        // are ordered by count desc, so warm_smile leads.
+        var warmSmile = await GetTraitAsync(target.Client, "warm_smile");
+        var goodVibe = await GetTraitAsync(target.Client, "good_vibe");
 
-        (await SubmitAsync(senderOne.Client, target.ProfileId, creative.Id, target.PhotoId, "received-creative-one"))
+        (await SubmitAsync(senderOne.Client, target.ProfileId, warmSmile.Id, target.PhotoId, "received-warm-one"))
             .StatusCode.Should().Be(HttpStatusCode.Created);
-        (await SubmitAsync(senderTwo.Client, target.ProfileId, creative.Id, target.PhotoId, "received-creative-two"))
+        (await SubmitAsync(senderTwo.Client, target.ProfileId, warmSmile.Id, target.PhotoId, "received-warm-two"))
             .StatusCode.Should().Be(HttpStatusCode.Created);
-        (await SubmitAsync(senderThree.Client, target.ProfileId, warmSmile.Id, target.PhotoId, "received-warm"))
+        (await SubmitAsync(senderThree.Client, target.ProfileId, goodVibe.Id, target.PhotoId, "received-vibe"))
             .StatusCode.Should().Be(HttpStatusCode.Created);
 
         var response = await target.Client.GetAsync("/api/v1/appreciations/received?includeEvents=true", Ct);
@@ -157,15 +160,17 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
         var root = doc.RootElement;
 
         root.GetProperty("profileId").GetGuid().Should().Be(target.ProfileId);
-        root.GetProperty("headline").GetString().Should().Be("People often describe you in these ways.");
-        root.GetProperty("summary").GetString().Should().Contain("perceived");
+        root.GetProperty("headline").GetString().Should().Be("Quietly, people keep noticing you.");
+        root.GetProperty("summary").GetString().Should().Contain("private");
         root.GetProperty("total").GetInt32().Should().Be(3);
 
-        var receivedCategories = root.GetProperty("categories").EnumerateArray().ToArray();
-        receivedCategories.Select(c => c.GetProperty("slug").GetString()).Should().Equal("warm_smile", "creative");
-        receivedCategories[0].GetProperty("count").GetInt32().Should().Be(1);
-        receivedCategories[1].GetProperty("count").GetInt32().Should().Be(2);
-        receivedCategories[0].GetProperty("phrasing").GetString().Should().StartWith("People often");
+        var receivedTraits = root.GetProperty("traits").EnumerateArray().ToArray();
+        receivedTraits.Select(t => t.GetProperty("slug").GetString()).Should().Equal("warm_smile", "good_vibe");
+        receivedTraits[0].GetProperty("count").GetInt32().Should().Be(2);
+        receivedTraits[1].GetProperty("count").GetInt32().Should().Be(1);
+        receivedTraits[0].GetProperty("categorySlug").GetString().Should().Be("physical");
+        receivedTraits[0].GetProperty("hue").GetInt32().Should().Be(38);
+        receivedTraits[0].GetProperty("phrasing").GetString().Should().StartWith("People often");
 
         var events = root.GetProperty("events").EnumerateArray().ToArray();
         events.Should().HaveCount(3);
@@ -185,7 +190,9 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
         senderDoc.RootElement.GetProperty("total").GetInt32().Should().Be(0);
     }
 
-    private sealed record Category(Guid Id, string Slug, string Label, int SortOrder);
+    private sealed record Trait(Guid Id, Guid CategoryId, string Slug, string Label, int SortOrder);
+
+    private sealed record Category(Guid Id, string Slug, string Label, int SortOrder, int Hue, Trait[] Traits);
 
     private async Task<Category[]> GetCategoriesAsync(HttpClient client)
     {
@@ -193,22 +200,21 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var categories = await response.Content.ReadFromJsonAsync<Category[]>(cancellationToken: Ct);
         categories.Should().NotBeNull();
-        categories.Should().HaveCount(12);
+        categories.Should().HaveCount(6);
         categories!.Select(c => c.Slug).Should().Equal(
-            "warm_smile",
-            "authentic",
-            "stylish",
-            "calming_energy",
-            "confident",
-            "expressive",
-            "fun_energy",
-            "elegant",
-            "trustworthy",
-            "creative",
-            "kind",
-            "intelligent");
+            "physical",
+            "energy",
+            "style",
+            "humor",
+            "mind",
+            "authentic");
+        categories.Should().OnlyContain(c => c.Hue > 0);
+        categories.SelectMany(c => c.Traits).Should().HaveCount(20);
         return categories;
     }
+
+    private async Task<Trait> GetTraitAsync(HttpClient client, string slug) =>
+        (await GetCategoriesAsync(client)).SelectMany(c => c.Traits).Single(t => t.Slug == slug);
 
     private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage response)
     {
@@ -219,7 +225,7 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
     private async Task<HttpResponseMessage> SubmitAsync(
         HttpClient client,
         Guid receiverProfileId,
-        Guid categoryId,
+        Guid traitId,
         Guid? photoId,
         string idempotencyKey)
     {
@@ -228,7 +234,7 @@ public sealed class AppreciationFlowTests : IAsyncLifetime
             Content = JsonContent.Create(new
             {
                 receiverProfileId,
-                categoryId,
+                traitId,
                 photoId,
             }),
         };

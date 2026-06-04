@@ -24,6 +24,19 @@ internal sealed class AppreciationDevelopmentDataSeeder(
             throw new InvalidOperationException("Development seed requires appreciation categories.");
         }
 
+        var traits = await dbContext.AppreciationTraits
+            .AsNoTracking()
+            .Where(t => t.Active)
+            .OrderBy(t => t.SortOrder)
+            .ToArrayAsync(cancellationToken);
+        var traitsByCategory = traits
+            .GroupBy(t => t.CategoryId)
+            .ToDictionary(g => g.Key, g => g.ToArray());
+        if (traitsByCategory.Count == 0)
+        {
+            throw new InvalidOperationException("Development seed requires appreciation traits.");
+        }
+
         var now = timeProvider.GetUtcNow();
         var affectedReceivers = new HashSet<Guid>();
         var affectedSenders = new HashSet<Guid>();
@@ -37,11 +50,14 @@ internal sealed class AppreciationDevelopmentDataSeeder(
         {
             var sender = context.GetUser(context.ObserverKey(i));
             var category = categories[i % categories.Length];
+            var categoryTraits = traitsByCategory[category.Id];
+            var trait = categoryTraits[i % categoryTraits.Length];
             var photoId = testPhotos.Count == 0 ? (Guid?)null : testPhotos[i % testPhotos.Count].PhotoId;
             await InsertEventAsync(
                 sender.UserId,
                 testProfile.ProfileId,
                 category.Id,
+                trait.Id,
                 photoId,
                 $"development-seed-incoming-{i:D2}",
                 now.AddMinutes(-incomingCount + i),
@@ -60,11 +76,14 @@ internal sealed class AppreciationDevelopmentDataSeeder(
             var receiver = context.GetProfile(candidateKey);
             var receiverPhotos = context.GetPhotos(candidateKey);
             var category = categories[(i + 3) % categories.Length];
+            var categoryTraits = traitsByCategory[category.Id];
+            var trait = categoryTraits[i % categoryTraits.Length];
             var photoId = receiverPhotos.Count == 0 ? (Guid?)null : receiverPhotos[0].PhotoId;
             await InsertEventAsync(
                 testUser.UserId,
                 receiver.ProfileId,
                 category.Id,
+                trait.Id,
                 photoId,
                 $"development-seed-outgoing-{i:D2}",
                 now.AddMinutes(-outgoingCount + i),
@@ -89,6 +108,7 @@ internal sealed class AppreciationDevelopmentDataSeeder(
         Guid senderUserId,
         Guid receiverProfileId,
         Guid categoryId,
+        Guid traitId,
         Guid? photoId,
         string idempotencyKey,
         DateTimeOffset createdAt,
@@ -97,10 +117,10 @@ internal sealed class AppreciationDevelopmentDataSeeder(
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
              INSERT INTO appreciation.appreciation_events
-                 (id, sender_user_id, receiver_profile_id, category_id, photo_id, idempotency_key, created_at)
+                 (id, sender_user_id, receiver_profile_id, category_id, trait_id, photo_id, idempotency_key, created_at)
              VALUES
                  ({StableGuid($"appreciation:{idempotencyKey}")}, {senderUserId}, {receiverProfileId},
-                  {categoryId}, {photoId}, {idempotencyKey}, {createdAt})
+                  {categoryId}, {traitId}, {photoId}, {idempotencyKey}, {createdAt})
              ON CONFLICT (sender_user_id, idempotency_key) DO NOTHING
              """,
             cancellationToken);

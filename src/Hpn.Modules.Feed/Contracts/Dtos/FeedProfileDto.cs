@@ -15,6 +15,9 @@ public sealed record FeedProfileDto(
     string? Bio,
     bool Verified,
     IReadOnlyList<FeedPhotoDto> Photos,
+    // Interest labels (tags) the profile chose. Already public via the public
+    // profile; shown as quiet chips on the card.
+    IReadOnlyList<string> Interests,
     // Coarse distance band only — never an exact number (§10.4). Null when there is
     // no usable location to measure. One of: nearby, under_50km, 50_200km,
     // 200km_plus, different_country.
