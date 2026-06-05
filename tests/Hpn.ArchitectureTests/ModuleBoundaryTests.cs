@@ -5,6 +5,7 @@ using Hpn.Modules.Appreciation;
 using Hpn.Modules.Feed;
 using Hpn.Modules.Identity;
 using Hpn.Modules.Moderation;
+using Hpn.Modules.Notification;
 using Hpn.Modules.Photo;
 using Hpn.Modules.Profile;
 using Hpn.Modules.SocialFingerprint;
@@ -31,6 +32,7 @@ public sealed class ModuleBoundaryTests
         ["SocialFingerprint"] = typeof(SocialFingerprintModule).Assembly,
         ["Moderation"] = typeof(ModerationModule).Assembly,
         ["Admin"] = typeof(AdminModule).Assembly,
+        ["Notification"] = typeof(NotificationModule).Assembly,
     };
 
     [Fact]

@@ -177,6 +177,8 @@ internal sealed class SubmitAppreciationHandler(
                     appreciation.CategoryId,
                     appreciation.TraitId,
                     appreciation.PhotoId,
+                    trait.TraitLabel,
+                    trait.CategorySlug,
                     appreciation.CreatedAt),
                 cancellationToken);
             await transaction.CommitAsync(cancellationToken);

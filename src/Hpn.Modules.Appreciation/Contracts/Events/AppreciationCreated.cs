@@ -9,4 +9,6 @@ public sealed record AppreciationCreated(
     Guid CategoryId,
     Guid TraitId,
     Guid? PhotoId,
+    string TraitLabel,
+    string CategorySlug,
     DateTimeOffset OccurredAt) : IDomainEvent;

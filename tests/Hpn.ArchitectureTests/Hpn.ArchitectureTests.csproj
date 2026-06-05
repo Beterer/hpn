@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\Hpn.Modules.SocialFingerprint\Hpn.Modules.SocialFingerprint.csproj" />
     <ProjectReference Include="..\..\src\Hpn.Modules.Moderation\Hpn.Modules.Moderation.csproj" />
     <ProjectReference Include="..\..\src\Hpn.Modules.Admin\Hpn.Modules.Admin.csproj" />
+    <ProjectReference Include="..\..\src\Hpn.Modules.Notification\Hpn.Modules.Notification.csproj" />
   </ItemGroup>
 
 </Project>

@@ -13,4 +13,5 @@ public static class RateLimitPolicies
     public const string Appreciation = "appreciation";
     public const string Reports = "reports";
     public const string Uploads = "uploads";
+    public const string Notifications = "notifications";
 }

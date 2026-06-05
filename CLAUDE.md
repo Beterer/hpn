@@ -36,7 +36,7 @@ Migrations (one DbContext per module, schema-per-module):
 
 ## Modules & how they talk
 
-Modules (each owns the schema of the same name): `Identity`, `Profile`, `Photo`, `Appreciation`, `Feed`, `SocialFingerprint`, `Moderation`, `Admin`. `Hpn.SharedKernel` holds the cross-cutting glue (events, `ICurrentUser`, `IAccountDataContributor`, shared moderation/account events, `RateLimitPolicies`, `ApiRoutes`, the validation endpoint filter). The host calls each module's `Add<Module>Module()` + `Map<Module>Endpoints()`.
+Modules (each owns the schema of the same name): `Identity`, `Profile`, `Photo`, `Appreciation`, `Feed`, `SocialFingerprint`, `Moderation`, `Admin`, `Notification`. `Hpn.SharedKernel` holds the cross-cutting glue (events, `ICurrentUser`, `IAccountDataContributor`, shared moderation/account events, `RateLimitPolicies`, `ApiRoutes`, the validation endpoint filter). The host calls each module's `Add<Module>Module()` + `Map<Module>Endpoints()`.
 
 Cross-module collaboration uses four patterns — recognise them before adding a fifth:
 

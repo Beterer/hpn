@@ -4,6 +4,7 @@ using Hpn.Modules.Appreciation;
 using Hpn.Modules.Feed;
 using Hpn.Modules.Identity;
 using Hpn.Modules.Moderation;
+using Hpn.Modules.Notification;
 using Hpn.Modules.Photo;
 using Hpn.Modules.Profile;
 using Hpn.Modules.SocialFingerprint;
@@ -143,6 +144,17 @@ try
             o.PermitLimit = 20;
             o.Window = TimeSpan.FromMinutes(10);
         });
+        // Notification summary is polled per authenticated user for the Received dot.
+        options.AddPolicy(RateLimitPolicies.Notifications, httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? "anonymous",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 120,
+                    Window = TimeSpan.FromMinutes(1),
+                }));
     });
 
     services.AddHealthChecks()
@@ -177,6 +189,7 @@ try
     services.AddSocialFingerprintModule(configuration);
     services.AddModerationModule(configuration);
     services.AddAdminModule(configuration);
+    services.AddNotificationModule(configuration);
 
     var app = builder.Build();
 
@@ -210,6 +223,7 @@ try
     api.MapSocialFingerprintEndpoints();
     api.MapModerationEndpoints();
     api.MapAdminEndpoints();
+    api.MapNotificationEndpoints();
 
     if (app.Environment.IsDevelopment())
     {

@@ -5,9 +5,9 @@ import { useFeedQueue } from '../../lib/query/feed'
 import { useSubmitReport } from '../../lib/query/reports'
 import { useBlockProfile } from '../../lib/query/settings'
 import { ApiError } from '../../lib/api/appreciation'
-import { cat, catInk, catSoft, genderGlyph } from './colors'
+import { cat, catInk, catSoft, catTint, genderGlyph } from './colors'
 import { PortraitFallback } from './ui'
-import { flattenTraits, type FlatTrait } from './taxonomy'
+import { groupTraits, type FlatTrait, type TraitGroup } from './taxonomy'
 
 type Phase = 'idle' | 'reacting' | 'flying'
 
@@ -72,15 +72,22 @@ function photoAt(profile: FeedProfile, index: number) {
   return photos[Math.min(Math.max(index, 0), photos.length - 1)]
 }
 
+function initialPhotoIndex(profile: FeedProfile) {
+  const ordered = [...(profile.photos ?? [])].sort((a, b) => Number(a.position) - Number(b.position))
+  const primaryIndex = ordered.findIndex((photo) => photo.isPrimary)
+  return primaryIndex >= 0 ? primaryIndex : 0
+}
+
 /**
  * The core appreciation loop (ADR-025 redesign): one full-bleed card → appreciate
- * FAB → flattened trait cloud → reward sequence → next. There is no skip/dislike;
+ * FAB → guided trait picker → reward sequence → next. There is no skip/dislike;
  * advancing requires choosing a trait. Honors prefers-reduced-motion via the CSS.
  */
 export function FeedScreen() {
   const feed = useFeedQueue()
   const categories = useAppreciationCategories()
-  const traits = useMemo(() => flattenTraits(categories.data), [categories.data])
+  const groups = useMemo(() => groupTraits(categories.data), [categories.data])
+  const [promotedProfileId, setPromotedProfileId] = useState<string | null>(null)
 
   if (feed.status === 'loading' || categories.isLoading) {
     return <div className="feed-wrap"><p className="centered-note">Finding people to notice…</p></div>
@@ -118,8 +125,12 @@ export function FeedScreen() {
       key={feed.current.profileId}
       profile={feed.current}
       next={feed.next}
-      traits={traits}
-      onAdvance={feed.advance}
+      groups={groups}
+      promotedFromBehind={promotedProfileId !== null && feed.current.profileId === promotedProfileId}
+      onAdvance={(promoteNext) => {
+        setPromotedProfileId(promoteNext ? (feed.next?.profileId ?? null) : null)
+        feed.advance()
+      }}
     />
   )
 }
@@ -127,13 +138,15 @@ export function FeedScreen() {
 function FeedDeck({
   profile,
   next,
-  traits,
+  groups,
+  promotedFromBehind,
   onAdvance,
 }: {
   profile: FeedProfile
   next: FeedProfile | null
-  traits: FlatTrait[]
-  onAdvance: () => void
+  groups: TraitGroup[]
+  promotedFromBehind: boolean
+  onAdvance: (promoteNext?: boolean) => void
 }) {
   const submit = useSubmitAppreciation()
   const report = useSubmitReport()
@@ -144,11 +157,7 @@ function FeedDeck({
   const [chosen, setChosen] = useState<{ label: string; hue: number } | null>(null)
   const [reported, setReported] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [photoIndex, setPhotoIndex] = useState(() => {
-    const ordered = [...(profile.photos ?? [])].sort((a, b) => Number(a.position) - Number(b.position))
-    const primaryIndex = ordered.findIndex((photo) => photo.isPrimary)
-    return primaryIndex >= 0 ? primaryIndex : 0
-  })
+  const [photoIndex, setPhotoIndex] = useState(() => initialPhotoIndex(profile))
   const timers = useRef<number[]>([])
   const trayRef = useRef<HTMLDivElement>(null)
   const fabRef = useRef<HTMLButtonElement>(null)
@@ -192,7 +201,7 @@ function FeedDeck({
         return
       }
       setPhase('flying')
-      timers.current.push(window.setTimeout(() => onAdvance(), FLY_MS))
+      timers.current.push(window.setTimeout(() => onAdvance(true), FLY_MS))
     }
 
     timers.current.push(
@@ -321,21 +330,21 @@ function FeedDeck({
     shiftPhoto(dx < 0 ? 1 : -1) // swipe left → next, right → previous
   }
 
-  const interests = profile.interests ?? []
-
   return (
     <div className="feed-wrap" style={{ ['--m' as string]: '14px' }}>
       <div className="feed-stage">
         {next && (
-          <article className="card card-behind" aria-hidden="true">
+          <article className={`card card-behind ${phase === 'flying' ? 'is-rising' : ''}`} aria-hidden="true">
             <div className="card-photo">
-              <CardPhoto profile={next} photoIndex={0} />
+              <CardPhoto profile={next} photoIndex={initialPhotoIndex(next)} />
+              <div className="card-scrim" />
+              <CardIdentity profile={next} />
             </div>
           </article>
         )}
 
         <article
-          className={`card card-front ${phase === 'flying' ? 'is-flying' : ''} ${phase === 'reacting' ? 'is-reacting' : ''}`}
+          className={`card card-front ${promotedFromBehind ? 'is-promoted' : ''} ${phase === 'flying' ? 'is-flying' : ''} ${phase === 'reacting' ? 'is-reacting' : ''}`}
         >
           <div className="card-photo" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             <CardPhoto profile={profile} photoIndex={photoIndex} />
@@ -424,17 +433,7 @@ function FeedDeck({
 
             <div className="card-scrim" />
 
-            <div className="card-id">
-              <div className="card-name-row">
-                <h2>{profile.displayName}</h2>
-                <span className="gender-glyph" title={profile.gender ?? undefined}>{genderGlyph(profile.gender)}</span>
-              </div>
-              {interests.length > 0 && (
-                <div className="chip-row">
-                  {interests.map((it) => <span key={it} className="interest-chip">{it}</span>)}
-                </div>
-              )}
-            </div>
+            <CardIdentity profile={profile} />
 
             <button
               ref={fabRef}
@@ -453,20 +452,11 @@ function FeedDeck({
 
             {open && (
               <div ref={trayRef} className="tray trait-tray">
-                <p className="cloud-q">Appreciate something real</p>
-                <div className="cloud-wrap">
-                  {traits.map((t, i) => (
-                    <button
-                      key={t.id}
-                      className="cloud-chip"
-                      style={{ background: catSoft(t.hue), color: catInk(t.hue), animationDelay: `${i * 18}ms` }}
-                      onClick={() => pick(t)}
-                      disabled={submit.isPending}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
+                <AppreciationPicker
+                  groups={groups}
+                  submitting={submit.isPending}
+                  onPick={pick}
+                />
               </div>
             )}
           </div>
@@ -481,7 +471,7 @@ function FeedDeck({
             : reported
               ? 'Reported — thank you for looking out.'
               : open
-                ? 'Tap a word you mean.'
+                ? 'Pick what stood out.'
                 : 'The only way forward is to appreciate.'}
       </p>
     </div>
@@ -491,9 +481,97 @@ function FeedDeck({
 function CardPhoto({ profile, photoIndex }: { profile: FeedProfile; photoIndex: number }) {
   const photo = photoAt(profile, photoIndex) ?? primaryPhoto(profile)
   if (photo?.displayUrl) {
-    return <img src={photo.displayUrl} alt={`A photo ${profile.displayName ?? ''} shared`} />
+    return <img src={photo.displayUrl} alt={`A photo ${profile.displayName ?? ''} shared`} loading="eager" />
   }
   return <PortraitFallback name={profile.displayName ?? ''} seed={profile.profileId ?? ''} />
+}
+
+function CardIdentity({ profile }: { profile: FeedProfile }) {
+  const interests = profile.interests ?? []
+  return (
+    <div className="card-id">
+      <div className="card-name-row">
+        <h2>{profile.displayName}</h2>
+        <span className="gender-glyph" title={profile.gender ?? undefined}>{genderGlyph(profile.gender)}</span>
+      </div>
+      {interests.length > 0 && (
+        <div className="chip-row">
+          {interests.map((it) => <span key={it} className="interest-chip">{it}</span>)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Guided two-step appreciation picker: choose a category lane, then the exact
+ * word inside it. Replaces the single flat trait cloud so each step stays small.
+ * Category colour (hue) carries straight into pick()'s reward animation.
+ */
+function AppreciationPicker({
+  groups,
+  submitting,
+  onPick,
+}: {
+  groups: TraitGroup[]
+  submitting: boolean
+  onPick: (trait: FlatTrait) => void
+}) {
+  const [activeSlug, setActiveSlug] = useState<string | null>(null)
+
+  const active = activeSlug ? groups.find((g) => g.slug === activeSlug) ?? null : null
+
+  if (!active) {
+    return (
+      <div className="react-flow">
+        <p className="react-q">What did you notice?</p>
+        <div className="lane-list">
+          {groups.map((g, i) => (
+            <button
+              key={g.slug}
+              className="lane"
+              style={{ background: catTint(g.hue), color: catInk(g.hue), animationDelay: `${i * 36}ms` }}
+              onClick={() => setActiveSlug(g.slug)}
+            >
+              <span className="lane-dot" style={{ background: cat(g.hue) }} />
+              <span className="lane-text">
+                <span className="lane-label">{g.label}</span>
+                <span className="lane-blurb">{g.blurb}</span>
+              </span>
+              <svg className="lane-chev" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 6 6-6 6" /></svg>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="react-flow" key={active.slug}>
+      <button
+        className="react-back"
+        onClick={() => setActiveSlug(null)}
+        style={{ color: catInk(active.hue) }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m15 6-6 6 6 6" /></svg>
+        <span className="react-back-label">{active.label}</span>
+        <span className="react-back-blurb">{active.blurb}</span>
+      </button>
+      <div className="trait-grid">
+        {active.traits.map((t, i) => (
+          <button
+            key={t.id}
+            className="trait-pick"
+            style={{ background: catSoft(t.hue), color: catInk(t.hue), animationDelay: `${i * 50}ms` }}
+            onClick={() => onPick(t)}
+            disabled={submitting}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function Confetti({ hue }: { hue: number }) {
