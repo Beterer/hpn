@@ -23,6 +23,7 @@ public sealed record FeedProfileDto(
 public sealed record FeedPhotoDto(
     Guid PhotoId,
     int Position,
+    bool IsPrimary,
     int Width,
     int Height,
     string DisplayUrl,

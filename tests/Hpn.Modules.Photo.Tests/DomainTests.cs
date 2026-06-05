@@ -7,7 +7,7 @@ namespace Hpn.Modules.Photo.Tests;
 public sealed class DomainTests
 {
     [Fact]
-    public void Create_ready_photo_sets_primary_position_and_metadata()
+    public void Create_ready_photo_sets_primary_flag_and_metadata()
     {
         var now = DateTimeOffset.UtcNow;
         var photo = ProfilePhoto.CreateReady(
@@ -21,12 +21,36 @@ public sealed class DomainTests
             height: 900,
             contentHash: new string('a', 64),
             scanResult: "pass",
-            now);
+            now,
+            isPrimary: true);
 
         photo.Position.Should().Be(0);
+        photo.IsPrimary.Should().BeTrue();
         photo.Status.Should().Be(PhotoStatus.Ready);
         photo.ScanResult.Should().Be("pass");
         photo.CreatedAt.Should().Be(now);
+    }
+
+    [Fact]
+    public void Setting_primary_does_not_change_position()
+    {
+        var photo = ProfilePhoto.CreateReady(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            position: 4,
+            originalKey: "original.webp",
+            displayKey: "display.webp",
+            thumbKey: "thumb.webp",
+            width: 1,
+            height: 1,
+            contentHash: new string('c', 64),
+            scanResult: null,
+            DateTimeOffset.UtcNow);
+
+        photo.SetPrimary(true);
+
+        photo.IsPrimary.Should().BeTrue();
+        photo.Position.Should().Be(4);
     }
 
     [Fact]

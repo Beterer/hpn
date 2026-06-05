@@ -39,7 +39,7 @@ internal static class UpdatePhotoOrderEndpoint
             .RequireAuthorization()
             .WithValidation<UpdatePhotoOrderRequest>()
             .WithName("UpdatePhotoOrder")
-            .WithSummary("Reorder the current user's profile photos. Position 0 is primary.")
+            .WithSummary("Reorder the current user's profile photos without changing the primary photo.")
             .WithTags("Photos")
             .Produces<IReadOnlyCollection<PhotoResponse>>()
             .ProducesProblem(StatusCodes.Status400BadRequest)

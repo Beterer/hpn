@@ -1,7 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import type { Profile } from '../../lib/api/profile'
 import { useInterests, useUpdateProfileInterests, useUpdateProfileStatus, useUpsertProfile } from '../../lib/query/profile'
-import { useDeleteProfilePhoto, useMyPhotos, useUpdatePhotoOrder, useUploadProfilePhoto } from '../../lib/query/photos'
+import {
+  useDeleteProfilePhoto,
+  useMyPhotos,
+  useSetPrimaryPhoto,
+  useUpdatePhotoOrder,
+  useUploadProfilePhoto,
+} from '../../lib/query/photos'
 import { useUpdateVisibility } from '../../lib/query/settings'
 import { Wordmark } from './ui'
 
@@ -11,6 +18,8 @@ const GENDERS: { value: string; label: string }[] = [
   { value: 'non_binary', label: 'Non-binary' },
   { value: 'self_describe', label: 'Rather not say' },
 ]
+
+const MAX_PROFILE_PHOTOS = 10
 
 type Visibility = {
   womenForWomen: boolean
@@ -25,6 +34,8 @@ type Visibility = {
  * public counts by construction (product principle).
  */
 export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; onDone: () => void }) {
+  const hasExistingProfile = profile !== null
+  const isEditing = profile !== null && profile.status !== 'draft'
   const upsert = useUpsertProfile()
   const updateInterests = useUpdateProfileInterests()
   const updateVisibility = useUpdateVisibility()
@@ -33,7 +44,8 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
   const photos = useMyPhotos(true)
   const uploadPhoto = useUploadProfilePhoto()
   const deletePhoto = useDeleteProfilePhoto()
-  const reorderPhotos = useUpdatePhotoOrder()
+  const setPrimaryPhoto = useSetPrimaryPhoto()
+  const updatePhotoOrder = useUpdatePhotoOrder()
 
   const [step, setStep] = useState(0)
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
@@ -45,23 +57,184 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
     verifiedOnly: profile?.visibilityPreferences?.verifiedOnly ?? false,
   })
   const [error, setError] = useState<string | null>(null)
+  const [draggedPhotoId, setDraggedPhotoId] = useState<string | null>(null)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
+  const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(null)
+  const photoRowRef = useRef<HTMLDivElement>(null)
+  const revealPhotoIdRef = useRef<string | null>(null)
+  const draggedPhotoIdRef = useRef<string | null>(null)
+  const dropIndexRef = useRef<number | null>(null)
+  const pointerXRef = useRef<number | null>(null)
+  const autoScrollFrameRef = useRef<number | null>(null)
 
-  const photoList = photos.data ?? []
-  const slots = [0, 1, 2]
+  const photoList = useMemo(() => photos.data ?? [], [photos.data])
+  const primaryPhotoId = photoList.find((photo) => photo.isPrimary)?.id ?? photoList[0]?.id
+  const draggedPhoto = photoList.find((photo) => photo.id === draggedPhotoId)
+  const canAddPhotos = photoList.length < MAX_PROFILE_PHOTOS
+  const photoCarousel: Array<
+    { kind: 'photo'; photo: (typeof photoList)[number] } | { kind: 'add' }
+  > = photoList.map((photo) => ({ kind: 'photo', photo }))
+  if (canAddPhotos) {
+    photoCarousel.push({ kind: 'add' })
+  }
+
+  useLayoutEffect(() => {
+    const row = photoRowRef.current
+    if (row && canAddPhotos) {
+      row.scrollLeft = row.scrollWidth
+    }
+  }, [canAddPhotos, photoList.length])
+
+  useLayoutEffect(() => {
+    const row = photoRowRef.current
+    const photo = revealPhotoIdRef.current === null
+      ? null
+      : [...(row?.querySelectorAll<HTMLElement>('[data-photo-id]') ?? [])]
+        .find((slot) => slot.dataset.photoId === revealPhotoIdRef.current)
+
+    if (photo) {
+      photo.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+      revealPhotoIdRef.current = null
+    }
+  }, [photoList])
+
+  useEffect(() => () => {
+    if (autoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(autoScrollFrameRef.current)
+    }
+  }, [])
+
   // Mirror the backend activation requirement (a ready photo) so it's enforced on the
   // step that owns photos — not deferred to "Activate", which strands the user two
   // screens away from where they'd fix it.
   const hasReadyPhoto = photoList.some((p) => p.status === 'ready')
 
-  // Position 0 is the feed primary. The backend already supports a full reorder
-  // (PUT /profile/photos/order); "make primary" is the one move that matters here
-  // — move a photo to the front, keep the rest in their current order.
   const makePrimary = (photoId: string) => {
-    if (reorderPhotos.isPending) {
+    if (setPrimaryPhoto.isPending) {
       return
     }
-    const ids = photoList.map((p) => p.id)
-    reorderPhotos.mutate([photoId, ...ids.filter((id) => id !== photoId)])
+    setPrimaryPhoto.mutate(photoId)
+  }
+
+  const updateDropIndex = (clientX: number) => {
+    const row = photoRowRef.current
+    if (!row) {
+      return
+    }
+
+    const slots = [...row.querySelectorAll<HTMLElement>('[data-photo-index]')]
+    const nextIndex = slots.findIndex((slot) => clientX < slot.getBoundingClientRect().left + slot.offsetWidth / 2)
+    const index = nextIndex === -1 ? photoList.length - 1 : Number(slots[nextIndex].dataset.photoIndex)
+    dropIndexRef.current = index
+    setDropIndex(index)
+  }
+
+  const runAutoScroll = () => {
+    const row = photoRowRef.current
+    const clientX = pointerXRef.current
+    if (!row || clientX === null || draggedPhotoIdRef.current === null) {
+      autoScrollFrameRef.current = null
+      return
+    }
+
+    const bounds = row.getBoundingClientRect()
+    const edge = Math.min(72, bounds.width * 0.24)
+    let speed = 0
+    if (clientX < bounds.left + edge) {
+      speed = -Math.min(18, Math.ceil((bounds.left + edge - clientX) / 6))
+    } else if (clientX > bounds.right - edge) {
+      speed = Math.min(18, Math.ceil((clientX - (bounds.right - edge)) / 6))
+    }
+
+    if (speed !== 0) {
+      row.scrollLeft += speed
+      updateDropIndex(clientX)
+    }
+    autoScrollFrameRef.current = requestAnimationFrame(runAutoScroll)
+  }
+
+  const startPhotoDrag = (photoId: string, event: PointerEvent<HTMLDivElement>) => {
+    if (updatePhotoOrder.isPending) {
+      return
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId)
+    draggedPhotoIdRef.current = photoId
+    pointerXRef.current = event.clientX
+    setDraggedPhotoId(photoId)
+    setDragPoint({ x: event.clientX, y: event.clientY })
+    updateDropIndex(event.clientX)
+    autoScrollFrameRef.current = requestAnimationFrame(runAutoScroll)
+  }
+
+  const movePhotoDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (draggedPhotoIdRef.current === null) {
+      return
+    }
+    pointerXRef.current = event.clientX
+    setDragPoint({ x: event.clientX, y: event.clientY })
+    updateDropIndex(event.clientX)
+  }
+
+  const finishPhotoDrag = async () => {
+    const photoId = draggedPhotoIdRef.current
+    const targetIndex = dropIndexRef.current
+    draggedPhotoIdRef.current = null
+    dropIndexRef.current = null
+    pointerXRef.current = null
+    setDraggedPhotoId(null)
+    setDropIndex(null)
+    setDragPoint(null)
+    if (autoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(autoScrollFrameRef.current)
+      autoScrollFrameRef.current = null
+    }
+
+    const sourceIndex = photoList.findIndex((photo) => photo.id === photoId)
+    if (photoId === null || targetIndex === null || sourceIndex === targetIndex) {
+      return
+    }
+
+    const reordered = [...photoList]
+    const [selectedPhoto] = reordered.splice(sourceIndex, 1)
+    reordered.splice(targetIndex, 0, selectedPhoto)
+
+    setError(null)
+    revealPhotoIdRef.current = photoId
+    try {
+      await updatePhotoOrder.mutateAsync(reordered.map((photo) => photo.id))
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
+  const cancelPhotoDrag = () => {
+    draggedPhotoIdRef.current = null
+    dropIndexRef.current = null
+    pointerXRef.current = null
+    setDraggedPhotoId(null)
+    setDropIndex(null)
+    setDragPoint(null)
+    if (autoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(autoScrollFrameRef.current)
+      autoScrollFrameRef.current = null
+    }
+  }
+
+  const addPhotos = async (files: FileList | null) => {
+    const selectedFiles = Array.from(files ?? []).slice(0, MAX_PROFILE_PHOTOS - photoList.length)
+    if (selectedFiles.length === 0 || uploadPhoto.isPending) {
+      return
+    }
+
+    setError(null)
+    try {
+      for (const file of selectedFiles) {
+        await uploadPhoto.mutateAsync(file)
+      }
+    } catch (e) {
+      setError((e as Error).message)
+    }
   }
 
   const saveBasics = async () => {
@@ -82,7 +255,7 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
       await upsert.mutateAsync({
         displayName: displayName.trim(),
         gender,
-        selfDescribeText: null,
+        selfDescribeText: hasExistingProfile ? profile.selfDescribeText : null,
       })
       setStep(1)
     } catch (e) {
@@ -130,7 +303,7 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
     })
   }
 
-  const busy = upsert.isPending || updateInterests.isPending || updateVisibility.isPending || setStatus.isPending
+  const busy = upsert.isPending || updateInterests.isPending || updateVisibility.isPending || setStatus.isPending || updatePhotoOrder.isPending
 
   return (
     <div className="ob">
@@ -143,9 +316,13 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
         <Wordmark size={15} />
       </div>
 
-      {step > 0 && (
-        <button className="welcome-skip" style={{ alignSelf: 'flex-start', marginLeft: -4 }} onClick={() => setStep(step - 1)}>
-          ← Back
+      {(isEditing || step > 0) && (
+        <button
+          className="welcome-skip"
+          style={{ alignSelf: 'flex-start', marginLeft: -4 }}
+          onClick={() => isEditing ? onDone() : setStep(step - 1)}
+        >
+          ← {isEditing ? 'You' : 'Back'}
         </button>
       )}
 
@@ -155,73 +332,84 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
         {step === 0 && (
           <>
             <h2 className="ob-h">The basics.</h2>
-            <p className="ob-p">No age, height, body type or income — ever. Just enough to be you.</p>
+            <p className="ob-p">No age, height, body type or income — ever. Add up to ten photos, then choose your primary.</p>
 
-            <div className="photo-row">
-              {slots.map((slot) => {
-                const photo = photoList[slot]
-                return (
-                  <div key={slot} className="pslot">
-                    {photo ? (
-                      <>
-                        <img src={photo.thumbUrl || photo.displayUrl} alt="" />
-                        <button
-                          className="report-btn"
-                          style={{ opacity: 0.9 }}
-                          onClick={() => deletePhoto.mutate(photo.id)}
-                          aria-label="Remove photo"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
-                        </button>
-                        {slot === 0 ? (
-                          <span className="pslot-tag primary">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z" /></svg>
-                            Primary
-                          </span>
-                        ) : (
-                          <button
-                            className="pslot-tag make"
-                            disabled={reorderPhotos.isPending}
-                            onClick={() => makePrimary(photo.id)}
-                          >
-                            Make primary
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {uploadPhoto.isPending ? 'Uploading…' : 'Add'}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) uploadPhoto.mutate(file)
-                            e.target.value = ''
-                          }}
-                        />
-                      </>
-                    )}
-                  </div>
-                )
-              })}
+            <div ref={photoRowRef} className={`photo-row ${draggedPhotoId !== null ? 'dragging' : ''}`}>
+              {photoCarousel.map((item) => item.kind === 'photo' ? (
+                <div
+                  key={item.photo.id}
+                  data-photo-id={item.photo.id}
+                  data-photo-index={photoList.findIndex((photo) => photo.id === item.photo.id)}
+                  className={`pslot draggable ${draggedPhotoId === item.photo.id ? 'dragging' : ''} ${draggedPhotoId !== null && dropIndex === photoList.findIndex((photo) => photo.id === item.photo.id) ? 'drop-target' : ''}`}
+                  onPointerDown={(event) => startPhotoDrag(item.photo.id, event)}
+                  onPointerMove={movePhotoDrag}
+                  onPointerUp={() => void finishPhotoDrag()}
+                  onPointerCancel={cancelPhotoDrag}
+                  onContextMenu={(event) => event.preventDefault()}
+                  aria-grabbed={draggedPhotoId === item.photo.id}
+                >
+                  <img src={item.photo.thumbUrl || item.photo.displayUrl} alt="" draggable={false} />
+                  <button
+                    className="report-btn"
+                    style={{ opacity: 0.9 }}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => deletePhoto.mutate(item.photo.id)}
+                    aria-label="Remove photo"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                  </button>
+                  {item.photo.id === primaryPhotoId ? (
+                    <span className="pslot-tag primary">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z" /></svg>
+                      Primary
+                    </span>
+                  ) : (
+                    <button
+                      className="pslot-tag make"
+                      disabled={setPrimaryPhoto.isPending}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={() => makePrimary(item.photo.id)}
+                    >
+                      Make primary
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div key="add-photo" className="pslot">
+                  {uploadPhoto.isPending ? 'Uploading…' : `Add (${photoList.length}/${MAX_PROFILE_PHOTOS})`}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    disabled={uploadPhoto.isPending}
+                    onChange={(e) => {
+                      void addPhotos(e.target.files)
+                      e.target.value = ''
+                    }}
+                  />
+                </div>
+              ))}
             </div>
+
+            {photoList.length > 1 && <p className="photo-reorder-hint">Press and drag a photo to change its position.</p>}
 
             <label className="field">
               Display name
               <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="What should people call you?" />
             </label>
 
-            <div className="field">
-              <span>How you appear <span className="field-em">(shown as a small, quiet glyph)</span></span>
-              <div className="seg-grid">
-                {GENDERS.map((g) => (
-                  <button key={g.value} className={`seg ${gender === g.value ? 'on' : ''}`} onClick={() => setGender(g.value)}>
-                    {g.label}
-                  </button>
-                ))}
+            {!hasExistingProfile && (
+              <div className="field">
+                <span>How you appear <span className="field-em">(shown as a small, quiet glyph)</span></span>
+                <div className="seg-grid">
+                  {GENDERS.map((g) => (
+                    <button key={g.value} className={`seg ${gender === g.value ? 'on' : ''}`} onClick={() => setGender(g.value)}>
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <button className="big-btn primary" disabled={busy} onClick={() => void saveBasics()}>
               {upsert.isPending ? 'Saving…' : 'Continue'}
@@ -272,6 +460,12 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
           </>
         )}
       </div>
+      {draggedPhoto && dragPoint && createPortal(
+        <div className="photo-drag-preview" style={{ left: dragPoint.x, top: dragPoint.y }}>
+          <img src={draggedPhoto.thumbUrl || draggedPhoto.displayUrl} alt="" />
+        </div>,
+        document.body,
+      )}
     </div>
   )
 }

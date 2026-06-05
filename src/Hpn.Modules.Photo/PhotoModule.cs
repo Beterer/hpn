@@ -8,6 +8,7 @@ using Hpn.Modules.Photo.Internal.Features.DeleteProfilePhoto;
 using Hpn.Modules.Photo.Internal.Features.GetMyPhotos;
 using Hpn.Modules.Photo.Internal.Features.GetPhotoContent;
 using Hpn.Modules.Photo.Internal.Features.GetPublicPhotoContent;
+using Hpn.Modules.Photo.Internal.Features.SetPrimaryPhoto;
 using Hpn.Modules.Photo.Internal.Features.UpdatePhotoOrder;
 using Hpn.Modules.Photo.Internal.Features.UploadProfilePhoto;
 using Hpn.Modules.Photo.Internal.ImageProcessing;
@@ -73,6 +74,7 @@ public static class PhotoModule
         services.AddScoped<GetPublicPhotoContentHandler>();
         services.AddScoped<UploadProfilePhotoHandler>();
         services.AddScoped<DeleteProfilePhotoHandler>();
+        services.AddScoped<SetPrimaryPhotoHandler>();
         services.AddScoped<UpdatePhotoOrderHandler>();
         services.AddScoped<IAccountDataContributor, PhotoDataContributor>();
 
@@ -88,6 +90,7 @@ public static class PhotoModule
         endpoints.MapGetPublicPhotoContent();
         endpoints.MapUploadProfilePhoto();
         endpoints.MapDeleteProfilePhoto();
+        endpoints.MapSetPrimaryPhoto();
         endpoints.MapUpdatePhotoOrder();
 
         return endpoints;

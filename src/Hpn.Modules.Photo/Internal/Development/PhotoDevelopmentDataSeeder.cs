@@ -112,7 +112,8 @@ internal sealed class PhotoDevelopmentDataSeeder(
                 processed.Height,
                 processed.ContentHash,
                 scanResult: "development_seed",
-                timeProvider.GetUtcNow());
+                timeProvider.GetUtcNow(),
+                isPrimary: position == 0);
             dbContext.Photos.Add(photo);
             await dbContext.SaveChangesAsync(cancellationToken);
         }

@@ -28,7 +28,7 @@ internal sealed class PhotoApi(PhotoDbContext dbContext) : IPhotoApi
     public async Task<PhotoDto?> GetPrimaryPhotoAsync(Guid profileId, CancellationToken cancellationToken = default) =>
         await dbContext.Photos
             .AsNoTracking()
-            .Where(p => p.ProfileId == profileId && p.Position == 0 && p.Status == PhotoStatus.Ready)
+            .Where(p => p.ProfileId == profileId && p.IsPrimary && p.Status == PhotoStatus.Ready)
             .Select(p => ToDto(p))
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -36,6 +36,7 @@ internal sealed class PhotoApi(PhotoDbContext dbContext) : IPhotoApi
         photo.Id,
         photo.ProfileId,
         photo.Position,
+        photo.IsPrimary,
         photo.Status.ToStorageValue(),
         photo.Width,
         photo.Height,

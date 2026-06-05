@@ -98,6 +98,7 @@ public sealed class PhotoFlowTests : IAsyncLifetime
         using var first = await UploadPhotoAsync(client, await CreateJpegAsync(96, 72, includeExif: true, ct), "first.jpg", ct);
         first.RootElement.GetProperty("status").GetString().Should().Be("ready");
         first.RootElement.GetProperty("position").GetInt32().Should().Be(0);
+        first.RootElement.GetProperty("isPrimary").GetBoolean().Should().BeTrue();
         var firstPhotoId = first.RootElement.GetProperty("id").GetGuid();
 
         await AssertStoredWebpVariantsAsync(profileId, firstPhotoId, ct);
@@ -107,6 +108,20 @@ public sealed class PhotoFlowTests : IAsyncLifetime
 
         using var second = await UploadPhotoAsync(client, await CreateJpegAsync(80, 80, includeExif: false, ct), "second.jpg", ct);
         var secondPhotoId = second.RootElement.GetProperty("id").GetGuid();
+        second.RootElement.GetProperty("isPrimary").GetBoolean().Should().BeFalse();
+
+        var primaryChanged = await client.PutAsync($"/api/v1/profile/photos/{secondPhotoId}/primary", content: null, ct);
+        primaryChanged.StatusCode.Should().Be(HttpStatusCode.OK);
+        using (var doc = await ReadJsonAsync(primaryChanged, ct))
+        {
+            var photos = doc.RootElement.EnumerateArray().ToArray();
+            photos[0].GetProperty("id").GetGuid().Should().Be(firstPhotoId);
+            photos[0].GetProperty("position").GetInt32().Should().Be(0);
+            photos[0].GetProperty("isPrimary").GetBoolean().Should().BeFalse();
+            photos[1].GetProperty("id").GetGuid().Should().Be(secondPhotoId);
+            photos[1].GetProperty("position").GetInt32().Should().Be(1);
+            photos[1].GetProperty("isPrimary").GetBoolean().Should().BeTrue();
+        }
 
         var reordered = await client.PutAsJsonAsync("/api/v1/profile/photos/order", new
         {
@@ -118,7 +133,9 @@ public sealed class PhotoFlowTests : IAsyncLifetime
             var photos = doc.RootElement.EnumerateArray().ToArray();
             photos[0].GetProperty("id").GetGuid().Should().Be(secondPhotoId);
             photos[0].GetProperty("position").GetInt32().Should().Be(0);
+            photos[0].GetProperty("isPrimary").GetBoolean().Should().BeTrue();
             photos[1].GetProperty("position").GetInt32().Should().Be(1);
+            photos[1].GetProperty("isPrimary").GetBoolean().Should().BeFalse();
         }
 
         var deleted = await client.DeleteAsync($"/api/v1/profile/photos/{secondPhotoId}", ct);
@@ -131,6 +148,7 @@ public sealed class PhotoFlowTests : IAsyncLifetime
             var photo = doc.RootElement.EnumerateArray().Should().ContainSingle().Subject;
             photo.GetProperty("id").GetGuid().Should().Be(firstPhotoId);
             photo.GetProperty("position").GetInt32().Should().Be(0);
+            photo.GetProperty("isPrimary").GetBoolean().Should().BeTrue();
         }
     }
 
@@ -156,6 +174,25 @@ public sealed class PhotoFlowTests : IAsyncLifetime
             "too-big.jpg",
             ct);
         oversize.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Upload_allows_ten_photos_then_rejects_the_eleventh()
+    {
+        var client = await SignInAsync("photo-limit@example.com");
+        var ct = TestContext.Current.CancellationToken;
+        _ = await CreateProfileAsync(client, "Ten", ct);
+        var photo = await CreateJpegAsync(32, 32, includeExif: false, ct);
+
+        for (var index = 0; index < 10; index++)
+        {
+            using var uploaded = await UploadRawAsync(client, photo, "image/jpeg", $"{index}.jpg", ct);
+            uploaded.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        using var rejected = await UploadRawAsync(client, photo, "image/jpeg", "eleventh.jpg", ct);
+        rejected.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await rejected.Content.ReadAsStringAsync(ct)).Should().Contain("up to 10 photos");
     }
 
     [Fact]

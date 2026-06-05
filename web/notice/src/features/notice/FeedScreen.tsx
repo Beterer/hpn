@@ -60,7 +60,7 @@ function vibrate(ms: number) {
 
 function primaryPhoto(profile: FeedProfile) {
   const photos = profile.photos ?? []
-  return photos.find((p) => Number(p.position) === 0) ?? photos[0] ?? null
+  return photos.find((p) => p.isPrimary) ?? photos[0] ?? null
 }
 
 function photoAt(profile: FeedProfile, index: number) {
@@ -144,7 +144,11 @@ function FeedDeck({
   const [chosen, setChosen] = useState<{ label: string; hue: number } | null>(null)
   const [reported, setReported] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [photoIndex, setPhotoIndex] = useState(0)
+  const [photoIndex, setPhotoIndex] = useState(() => {
+    const ordered = [...(profile.photos ?? [])].sort((a, b) => Number(a.position) - Number(b.position))
+    const primaryIndex = ordered.findIndex((photo) => photo.isPrimary)
+    return primaryIndex >= 0 ? primaryIndex : 0
+  })
   const timers = useRef<number[]>([])
   const trayRef = useRef<HTMLDivElement>(null)
   const fabRef = useRef<HTMLButtonElement>(null)
@@ -448,7 +452,7 @@ function FeedDeck({
             </button>
 
             {open && (
-              <div ref={trayRef} className="tray">
+              <div ref={trayRef} className="tray trait-tray">
                 <p className="cloud-q">Appreciate something real</p>
                 <div className="cloud-wrap">
                   {traits.map((t, i) => (

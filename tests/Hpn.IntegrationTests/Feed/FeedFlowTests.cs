@@ -76,6 +76,7 @@ public sealed class FeedFlowTests : IAsyncLifetime
         var photo = card.GetProperty("photos").EnumerateArray().Should().ContainSingle().Subject;
         photo.GetProperty("photoId").GetGuid().Should().NotBeEmpty();
         photo.GetProperty("position").GetInt32().Should().Be(0);
+        photo.GetProperty("isPrimary").GetBoolean().Should().BeTrue();
         photo.GetProperty("displayUrl").GetString().Should().Be(
             $"/api/v1/photos/{photo.GetProperty("photoId").GetGuid()}/content?variant=display");
         photo.GetProperty("thumbUrl").GetString().Should().EndWith("variant=thumb");
@@ -406,8 +407,8 @@ public sealed class FeedFlowTests : IAsyncLifetime
         var contentHash = (photoId.ToString("N") + photoId.ToString("N"))[..64];
         return ExecuteAsync(
             "INSERT INTO photo.photos " +
-            "(id, profile_id, position, status, original_key, display_key, thumb_key, width, height, content_hash, created_at) " +
-            "VALUES (@id, @pid, 0, 'ready', @ok, @dk, @tk, 400, 400, @hash, now())",
+            "(id, profile_id, position, is_primary, status, original_key, display_key, thumb_key, width, height, content_hash, created_at) " +
+            "VALUES (@id, @pid, 0, true, 'ready', @ok, @dk, @tk, 400, 400, @hash, now())",
             p =>
             {
                 p.AddWithValue("id", photoId);

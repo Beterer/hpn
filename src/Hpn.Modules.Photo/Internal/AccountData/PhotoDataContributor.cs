@@ -31,6 +31,7 @@ internal sealed class PhotoDataContributor(
             {
                 p.Id,
                 p.Position,
+                p.IsPrimary,
                 Status = p.Status.ToString().ToLowerInvariant(),
                 p.Width,
                 p.Height,
