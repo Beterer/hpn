@@ -12,6 +12,10 @@ internal sealed class ProfilePhotoConfiguration : IEntityTypeConfiguration<Profi
         builder.HasKey(p => p.Id);
 
         builder.HasIndex(p => new { p.ProfileId, p.Position }).IsUnique();
+        builder.HasIndex(p => p.ProfileId)
+            .IsUnique()
+            .HasFilter("is_primary")
+            .HasDatabaseName("ix_photos_profile_id_primary");
         builder.HasIndex(p => p.ContentHash);
 
         builder.Property(p => p.Status)

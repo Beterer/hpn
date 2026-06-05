@@ -54,6 +54,16 @@ export async function updatePhotoOrder(photoIds: string[]): Promise<Photo[]> {
   return readJson<Photo[]>(response)
 }
 
+export async function setPrimaryPhoto(photoId: string): Promise<Photo[]> {
+  const response = await apiFetch(`/profile/photos/${photoId}/primary`, {
+    method: 'PUT',
+  })
+  if (!response.ok) {
+    throw await readError(response, `Could not set primary photo (${response.status}).`)
+  }
+  return readJson<Photo[]>(response)
+}
+
 export async function deleteProfilePhoto(photoId: string): Promise<void> {
   const response = await apiFetch(`/profile/photos/${photoId}`, {
     method: 'DELETE',

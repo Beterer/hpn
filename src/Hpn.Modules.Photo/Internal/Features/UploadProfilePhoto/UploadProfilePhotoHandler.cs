@@ -158,7 +158,8 @@ internal sealed class UploadProfilePhotoHandler(
                 processed.Height,
                 processed.ContentHash,
                 scanResult,
-                now);
+                now,
+                isPrimary: nextPosition == 0);
 
             dbContext.Photos.Add(photo);
             try

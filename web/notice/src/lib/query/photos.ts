@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   deleteProfilePhoto,
   getMyPhotos,
+  setPrimaryPhoto,
   updatePhotoOrder,
   uploadProfilePhoto,
   type Photo,
@@ -36,6 +37,35 @@ export function useUpdatePhotoOrder() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (photoIds: string[]) => updatePhotoOrder(photoIds),
+    onMutate: async (photoIds) => {
+      await queryClient.cancelQueries({ queryKey: photoKeys.mine })
+      const previous = queryClient.getQueryData<Photo[]>(photoKeys.mine)
+
+      queryClient.setQueryData<Photo[]>(photoKeys.mine, (current) => {
+        const byId = new Map((current ?? []).map((photo) => [photo.id, photo]))
+        return photoIds.flatMap((id, position) => {
+          const photo = byId.get(id)
+          return photo ? [{ ...photo, position }] : []
+        })
+      })
+
+      return { previous }
+    },
+    onError: (_error, _photoIds, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(photoKeys.mine, context.previous)
+      }
+    },
+    onSuccess: (photos) => {
+      queryClient.setQueryData(photoKeys.mine, photos)
+    },
+  })
+}
+
+export function useSetPrimaryPhoto() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (photoId: string) => setPrimaryPhoto(photoId),
     onSuccess: (photos) => {
       queryClient.setQueryData(photoKeys.mine, photos)
     },
@@ -47,11 +77,16 @@ export function useDeleteProfilePhoto() {
   return useMutation({
     mutationFn: (photoId: string) => deleteProfilePhoto(photoId),
     onSuccess: (_ignored, photoId) => {
-      queryClient.setQueryData<Photo[]>(photoKeys.mine, (current) =>
-        (current ?? [])
+      queryClient.setQueryData<Photo[]>(photoKeys.mine, (current) => {
+        const deletedPrimary = current?.some((photo) => photo.id === photoId && photo.isPrimary) ?? false
+        return (current ?? [])
           .filter((photo) => photo.id !== photoId)
-          .map((photo, index) => ({ ...photo, position: index })),
-      )
+          .map((photo, index) => ({
+            ...photo,
+            position: index,
+            isPrimary: deletedPrimary ? index === 0 : photo.isPrimary,
+          }))
+      })
     },
   })
 }

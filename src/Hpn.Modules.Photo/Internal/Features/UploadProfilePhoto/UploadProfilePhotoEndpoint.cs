@@ -1,9 +1,11 @@
 using Hpn.Modules.Photo.Internal.Features;
+using Hpn.Modules.Photo.Internal.ImageProcessing;
 using Hpn.SharedKernel.RateLimiting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 
 namespace Hpn.Modules.Photo.Internal.Features.UploadProfilePhoto;
 
@@ -14,6 +16,7 @@ internal static class UploadProfilePhotoEndpoint
         endpoints.MapPost("/profile/photos", async (
                 [FromForm] IFormFile file,
                 UploadProfilePhotoHandler handler,
+                IOptions<PhotoUploadOptions> options,
                 CancellationToken cancellationToken) =>
             {
                 var result = await handler.HandleAsync(file, cancellationToken);
@@ -30,7 +33,7 @@ internal static class UploadProfilePhotoEndpoint
                 {
                     return Results.Problem(
                         title: "Photo limit reached",
-                        detail: "Profiles can have up to five photos in this version.",
+                        detail: $"Profiles can have up to {options.Value.MaxPhotosPerProfile} photos.",
                         statusCode: StatusCodes.Status409Conflict,
                         type: "https://hpn.dev/problems/photo-limit-reached");
                 }

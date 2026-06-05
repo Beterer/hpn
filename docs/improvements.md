@@ -113,10 +113,11 @@ so a typo silently mis-buckets a user.
 
 ### 5. No photo reordering / "make primary" in onboarding — ✅ FIXED (2026-06-05)
 **Resolution:** Each occupied photo slot now shows a tag — a coral "★ Primary" badge on the
-lead photo, and a "Make primary" pill on the others that calls the existing
-`useUpdatePhotoOrder` (PUT /profile/photos/order), moving that photo to position 0 and keeping
-the rest in order. Full drag-to-reorder was deferred as lower-value; "make primary" is the move
-that actually matters for the feed. (`OnboardingFlow.tsx`, `notice.css`.)
+lead photo, and a "Make primary" pill on the others. Primary selection is stored independently
+from carousel position, so choosing a new lead photo changes only the badge and feed opener;
+upload/user-arranged order stays untouched. Users can press and drag any photo directly in the
+carousel, with edge auto-scrolling for moving photos across the full ten-photo collection.
+(`OnboardingFlow.tsx`, `notice.css`, Photo module.)
 
 **Original finding —** **What:** Photos are shown in fixed positional slots `photoList[0..2]`; the first is the feed
 primary. There's no way to reorder or choose which photo leads. The backend already supports a

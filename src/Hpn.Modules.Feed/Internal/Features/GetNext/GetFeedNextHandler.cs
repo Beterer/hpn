@@ -116,6 +116,7 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
                     .Select(ph => new FeedPhotoDto(
                         ph.Id,
                         ph.Position,
+                        ph.IsPrimary,
                         ph.Width,
                         ph.Height,
                         $"{ApiRoutes.Prefix}/photos/{ph.Id}/content?variant=display",
@@ -204,6 +205,7 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
                     .Select(ph => new FeedPhotoDto(
                         ph.Id,
                         ph.Position,
+                        ph.IsPrimary,
                         ph.Width,
                         ph.Height,
                         $"{ApiRoutes.Prefix}/photos/{ph.Id}/content?variant=display",

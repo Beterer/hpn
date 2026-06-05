@@ -7,5 +7,5 @@ internal sealed class PhotoUploadOptions
     public int DisplayMaxEdge { get; init; } = 1400;
     public int ThumbMaxEdge { get; init; } = 360;
     public int WebpQuality { get; init; } = 82;
-    public int MaxPhotosPerProfile { get; init; } = 5;
+    public int MaxPhotosPerProfile { get; init; } = 10;
 }

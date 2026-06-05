@@ -46,6 +46,11 @@ internal sealed class DeleteProfilePhotoHandler(
                 .OrderBy(p => p.Position)
                 .ToArrayAsync(cancellationToken);
 
+            if (photo.IsPrimary && remaining.Length > 0)
+            {
+                remaining[0].SetPrimary(true);
+            }
+
             // Two-phase shift through a disjoint range so the (profile_id, position)
             // unique index can't trip mid-batch as rows slide down to close the gap.
             for (var index = 0; index < remaining.Length; index++)

@@ -43,6 +43,7 @@ internal sealed class FeedPhotoRow
     public Guid Id { get; init; }
     public Guid ProfileId { get; init; }
     public short Position { get; init; }
+    public bool IsPrimary { get; init; }
     public string Status { get; init; } = null!;
     public int Width { get; init; }
     public int Height { get; init; }

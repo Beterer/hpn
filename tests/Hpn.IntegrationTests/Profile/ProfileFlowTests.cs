@@ -108,8 +108,8 @@ public sealed class ProfileFlowTests : IAsyncLifetime
         using (var doc = await ReadJsonAsync(edited, ct))
         {
             doc.RootElement.GetProperty("displayName").GetString().Should().Be("Rowan A.");
-            doc.RootElement.GetProperty("gender").GetString().Should().Be("woman");
-            doc.RootElement.GetProperty("selfDescribeText").ValueKind.Should().Be(JsonValueKind.Null);
+            doc.RootElement.GetProperty("gender").GetString().Should().Be("self_describe");
+            doc.RootElement.GetProperty("selfDescribeText").GetString().Should().Be("genderqueer");
             doc.RootElement.GetProperty("status").GetString().Should().Be("active");
         }
     }

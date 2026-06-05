@@ -330,8 +330,8 @@ public sealed class GuestFlowTests : IAsyncLifetime
         var contentHash = (photoId.ToString("N") + photoId.ToString("N"))[..64];
         return ExecuteAsync(
             "INSERT INTO photo.photos " +
-            "(id, profile_id, position, status, original_key, display_key, thumb_key, width, height, content_hash, created_at) " +
-            "VALUES (@id, @pid, 0, 'ready', @ok, @dk, @tk, 400, 400, @hash, now())",
+            "(id, profile_id, position, is_primary, status, original_key, display_key, thumb_key, width, height, content_hash, created_at) " +
+            "VALUES (@id, @pid, 0, true, 'ready', @ok, @dk, @tk, 400, 400, @hash, now())",
             p =>
             {
                 p.AddWithValue("id", photoId);

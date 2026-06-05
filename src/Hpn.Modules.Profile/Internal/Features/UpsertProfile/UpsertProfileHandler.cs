@@ -36,8 +36,8 @@ internal sealed class UpsertProfileHandler(
         {
             profile.UpdateDetails(
                 request.DisplayName,
-                gender,
-                request.SelfDescribeText,
+                profile.Gender,
+                profile.SelfDescribeText,
                 now);
         }
 

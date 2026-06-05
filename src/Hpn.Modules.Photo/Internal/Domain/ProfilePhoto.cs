@@ -5,6 +5,7 @@ internal sealed class ProfilePhoto
     public Guid Id { get; private set; }
     public Guid ProfileId { get; private set; }
     public short Position { get; private set; }
+    public bool IsPrimary { get; private set; }
     public PhotoStatus Status { get; private set; }
     public string OriginalKey { get; private set; } = null!;
     public string DisplayKey { get; private set; } = null!;
@@ -30,7 +31,8 @@ internal sealed class ProfilePhoto
         int height,
         string contentHash,
         string? scanResult,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        bool isPrimary = false)
     {
         if (position < 0)
         {
@@ -42,6 +44,7 @@ internal sealed class ProfilePhoto
             Id = id,
             ProfileId = profileId,
             Position = checked((short)position),
+            IsPrimary = isPrimary,
             Status = PhotoStatus.Ready,
             OriginalKey = originalKey,
             DisplayKey = displayKey,
@@ -62,5 +65,10 @@ internal sealed class ProfilePhoto
         }
 
         Position = checked((short)position);
+    }
+
+    public void SetPrimary(bool isPrimary)
+    {
+        IsPrimary = isPrimary;
     }
 }
