@@ -489,7 +489,7 @@ compensation for a cold read).
 ---
 
 ### ADR-026 — One country-visibility control: inbound `hide_from_country` only
-**Status:** Accepted. Narrows the country rules from `ADR`-era M8 settings.
+**Status:** Superseded by `ADR-027` (country removed entirely). Narrows the country rules from `ADR`-era M8 settings.
 **Context:** Settings exposed two country toggles that read as duplicates to users but did
 opposite things: `hide_from_country` (**inbound** — remove me from the feed of viewers in my
 own country) and `show_only_outside_country` (**outbound** — hide same-country candidates from
@@ -509,6 +509,79 @@ feed no longer offers a viewer-side "people abroad only" filter. `BuildEligibili
 its `viewerWantsOutsideCountry` parameter; the inbound `hide_from_country` rule is unchanged.
 **Alternatives:** Keep both and reword the labels (rejected by product as redundant surface);
 keep only the outbound filter (rejected — it removes the inbound privacy capability).
+
+### ADR-027 — Remove country from the product entirely
+**Status:** Superseded by `ADR-028` (country reinstated as an internal, IP-derived field). Supersedes `ADR-026`.
+**Context:** After `ADR-026` only the inbound `hide_from_country` control remained. In practice
+country still cost a surface and a data point everywhere: a free-text 2-letter onboarding field
+(unvalidated — no picker, easy to typo), a `country_code` column on `profiles`, a
+`hide_from_country` flag on `visibility_preferences`, a feed eligibility rule, a
+`different_country` distance fallback, and the field on the feed/public DTOs. The card UI never
+shows country, distance is already handled by the coarse geopoint buckets (`ADR`-era §10.4), and
+the lone remaining toggle governed a niche same-country privacy case that the broader pause /
+block / women-for-women / verified-only controls already cover.
+**Decision:** Remove country end-to-end. Migration `RemoveCountry` drops both columns; the
+domain (`UserProfile.CountryCode`, `VisibilityPreferences.HideFromCountry`), the upsert +
+visibility request/response DTOs and validators, the public/feed contract DTOs, the feed
+eligibility "country rule" and `FeedViewerContext.CountryCode`, the `DistanceBuckets`
+`different_country` fallback, the account-export payload, the dev seeder, and both onboarding
+and You-screen toggles all go with it. Distance bands now derive solely from the coarse
+geopoint (null when there is no point to measure).
+**Rationale:** Data minimization (§2) — stop collecting a field the product doesn't use. It also
+resolves the unvalidated-input bug without building an ISO-3166 country picker. Less surface,
+tighter privacy, one fewer thing on the wire and in the schema.
+**Consequences:** Pre-launch, dropping the columns is a clean one-way migration (no data
+concern; `Down` re-adds them empty). No country-based feed shaping remains; if a "people abroad"
+or same-country-privacy need ever returns it comes back as a feed-ranking signal or a fresh
+preference, not a resurrected column. The feed `DistanceBucket` set shrinks to
+`nearby/under_50km/50_200km/200km_plus`.
+**Alternatives:** Build a proper country picker + server validation and keep the inbound toggle
+(rejected — keeps an unused-by-the-card data point and a niche control for marginal value);
+keep the column but stop surfacing it (rejected — dead weight in schema and DTOs).
+
+### ADR-028 — Country is internal + IP-derived; bio removed
+**Status:** Accepted. Supersedes `ADR-027`.
+**Context:** `ADR-027` removed country because the only thing wrong with it was the *unvalidated
+onboarding input* and its presence on user-facing surfaces. But the same-country privacy control
+("don't show me to people in my own country") is genuinely wanted — what wasn't wanted was asking
+the user to type a country, or showing country anywhere. Separately, the free-text **bio** ("a
+line about you") is never rendered on the card or anywhere in the product.
+**Decision:** Reinstate `country_code` (`profiles`) and `hide_from_country`
+(`visibility_preferences`), but make country **internal and derived, never entered or shown**:
+- **Derivation:** `IClientCountryResolver` (SharedKernel), implemented in the host as
+  `RequestClientCountryResolver`, resolves country via a fallback chain: (1) the edge geo header
+  (Cloudflare `CF-IPCountry`), then (2) an **offline GeoIP database** lookup on the client IP
+  (`GeoIpCountryDatabase` over a memory-resident `.mmdb`, read with the `MaxMind.Db` library — no
+  external call). The upsert handler calls `UserProfile.SetCountry` on create/edit; a null signal
+  (loopback IP in dev, missing header, `XX`/`T1`, or no DB present) leaves the stored value
+  untouched. The DB is the free **DB-IP Lite Country** file (CC BY 4.0) fetched by `make geoip`
+  into a gitignored `App_Data/` and pointed at by `GeoIp:DatabasePath`; the reader also accepts a
+  MaxMind GeoLite2-Country file (it handles both the flat `country_code` and nested
+  `country.iso_code` schemas). If the file is absent, IP estimation is simply disabled — no failure.
+- **Internal-only:** country is **absent** from `FeedProfileDto`, `PublicProfileDto`,
+  `ProfileResponse`, and the public projection. It is read only by the feed eligibility
+  same-country rule (`FeedViewerContext.CountryCode` + `FeedProfileRow.CountryCode`) and included
+  in the account **export** (the subject's own data, right of access).
+- **Toggle stays user-facing:** `hide_from_country` is back on the visibility request/response and
+  both the onboarding privacy step and the You screen — it's a preference, not the country value.
+- **Distance** remains geopoint-only (no `different_country` bucket) — country is never used for display.
+- **Bio removed entirely** (migration `DropBio`): the onboarding input, the `bio` column, the
+  upsert request/validator, every response/contract DTO, the feed card DTO + projection, the
+  export payload, and the seeder.
+**Rationale:** Keeps the wanted privacy capability while honouring data-minimization and "never
+show country": the user neither enters nor sees it. Deriving from the edge header is dependency-free
+and degrades gracefully. Dropping bio removes a collected-but-unshown field.
+**Consequences:** Country is estimated in any environment that has the `.mmdb` (run `make geoip`),
+not only behind Cloudflare; without both the header and the DB it stays null and the filter is
+inert — acceptable. Adds one dependency (`MaxMind.Db`, permissive licence) and a ~8 MB data file
+that is **not committed** (gitignored, refreshed via `make geoip`). Migrations net out to: country
+columns retained, `bio` dropped (the interim `RemoveCountry` migration was removed before commit,
+so history has no remove-then-readd churn). Integration tests cover both the header→storage path
+(via `CF-IPCountry`) and the same-country filter (seeding `country_code` by SQL).
+**Alternatives:** External IP-geolocation API at signup (rejected — an in-request external call +
+rate limits, against the "no external calls in v1" posture); edge header only (rejected — inert
+outside Cloudflare, which prompted this revision); keep bio for a future detail view (rejected —
+speculative, never shown); keep entering country in onboarding (rejected by "never ask/never show").
 
 ---
 

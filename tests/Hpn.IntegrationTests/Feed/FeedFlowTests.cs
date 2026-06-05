@@ -161,16 +161,47 @@ public sealed class FeedFlowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Honours_country_visibility_rules()
+    public async Task Country_is_derived_from_the_edge_header_and_kept_internal()
     {
-        var viewer = await CreateActiveParticipantAsync("country-viewer@example.com", country: "RO");
-        var sameCountryHidden = await CreateActiveParticipantAsync("hide-from-country@example.com", country: "RO");
-        var sameCountryOpen = await CreateActiveParticipantAsync("same-country-open@example.com", country: "RO");
+        var client = await SignInAsync("geo-header@example.com");
+        client.DefaultRequestHeaders.Add("CF-IPCountry", "ro"); // edge sets it; resolver normalizes
+
+        var created = await client.PutAsJsonAsync("/api/v1/profile", new
+        {
+            displayName = "Geo",
+            gender = "woman",
+            selfDescribeText = (string?)null,
+        }, Ct);
+        created.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Never surfaced on the response — country is internal-only (ADR-028).
+        var body = await created.Content.ReadAsStringAsync(Ct);
+        body.Should().NotContain("countryCode").And.NotContain("\"RO\"");
+
+        // …but it was derived from the header and stored, normalized to upper-case.
+        var profileId = JsonDocument.Parse(body).RootElement.GetProperty("id").GetGuid();
+        var stored = await ScalarStringAsync(
+            "SELECT country_code FROM profile.profiles WHERE id = @id",
+            p => p.AddWithValue("id", profileId));
+        stored.Should().Be("RO");
+    }
+
+    [Fact]
+    public async Task Honours_same_country_hide_preference()
+    {
+        // Country is IP-derived in production (ADR-028) and no longer accepted by the
+        // API, so seed it directly — the same cross-schema seeding the read model exists to honour.
+        var viewer = await CreateActiveParticipantAsync("country-viewer@example.com");
+        var sameCountryHidden = await CreateActiveParticipantAsync("hide-from-country@example.com");
+        var sameCountryOpen = await CreateActiveParticipantAsync("same-country-open@example.com");
+        await SetCountryAsync(viewer.ProfileId, "RO");
+        await SetCountryAsync(sameCountryHidden.ProfileId, "RO");
+        await SetCountryAsync(sameCountryOpen.ProfileId, "RO");
         await SetVisibilityFlagAsync(sameCountryHidden.ProfileId, "hide_from_country", true);
 
         var feed = await GetFeedAsync(viewer.Client);
         feed.Should().Contain(sameCountryOpen.ProfileId);
-        feed.Should().NotContain(sameCountryHidden.ProfileId, "this profile hides from same-country viewers");
+        feed.Should().NotContain(sameCountryHidden.ProfileId, "they hide from same-country viewers");
     }
 
     [Fact]
@@ -248,10 +279,9 @@ public sealed class FeedFlowTests : IAsyncLifetime
 
     private async Task<Participant> CreateActiveParticipantAsync(
         string email,
-        string gender = "woman",
-        string country = "RO")
+        string gender = "woman")
     {
-        var participant = await CreateDraftParticipantAsync(email, gender, country);
+        var participant = await CreateDraftParticipantAsync(email, gender);
         await InsertReadyPhotoAsync(participant.ProfileId);
         await SetStatusAsync(participant.ProfileId, "active");
         return participant;
@@ -266,8 +296,7 @@ public sealed class FeedFlowTests : IAsyncLifetime
 
     private async Task<Participant> CreateDraftParticipantAsync(
         string email,
-        string gender = "woman",
-        string country = "RO")
+        string gender = "woman")
     {
         var client = await SignInAsync(email);
         var created = await client.PutAsJsonAsync("/api/v1/profile", new
@@ -275,8 +304,6 @@ public sealed class FeedFlowTests : IAsyncLifetime
             displayName = email.Split('@')[0],
             gender,
             selfDescribeText = (string?)null,
-            countryCode = country,
-            bio = "Here for appreciation, not scores.",
         }, Ct);
         created.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -320,6 +347,15 @@ public sealed class FeedFlowTests : IAsyncLifetime
         p =>
         {
             p.AddWithValue("verified", verified);
+            p.AddWithValue("id", profileId);
+        });
+
+    // Country is normally set from the request edge (CF-IPCountry); tests seed it directly.
+    private Task SetCountryAsync(Guid profileId, string countryCode) => ExecuteAsync(
+        "UPDATE profile.profiles SET country_code = @country, updated_at = now() WHERE id = @id",
+        p =>
+        {
+            p.AddWithValue("country", countryCode);
             p.AddWithValue("id", profileId);
         });
 
@@ -400,6 +436,16 @@ public sealed class FeedFlowTests : IAsyncLifetime
         bind(command.Parameters);
         var result = await command.ExecuteScalarAsync(Ct);
         return (Guid)result!;
+    }
+
+    private async Task<string?> ScalarStringAsync(string sql, Action<NpgsqlParameterCollection> bind)
+    {
+        await using var connection = new NpgsqlConnection(_postgres.GetConnectionString());
+        await connection.OpenAsync(Ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        bind(command.Parameters);
+        var result = await command.ExecuteScalarAsync(Ct);
+        return result == DBNull.Value ? null : (string?)result;
     }
 
     private void UseFactory(Action<IServiceCollection>? configureServices = null)

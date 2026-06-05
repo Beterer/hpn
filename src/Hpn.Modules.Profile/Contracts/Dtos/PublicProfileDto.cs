@@ -5,7 +5,5 @@ public sealed record PublicProfileDto(
     string DisplayName,
     string Gender,
     string? SelfDescribeText,
-    string? CountryCode,
-    string? Bio,
     bool Verified,
     IReadOnlyCollection<PublicInterestDto> Interests);

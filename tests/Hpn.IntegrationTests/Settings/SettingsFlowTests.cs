@@ -78,7 +78,6 @@ public sealed class SettingsFlowTests : IAsyncLifetime
 
         var visibility = await viewer.Client.PutAsJsonAsync("/api/v1/settings/visibility", new
         {
-            hideFromCountry = false,
             minDistanceKm = 100,
             womenForWomen = false,
             verifiedOnly = false,
@@ -123,7 +122,6 @@ public sealed class SettingsFlowTests : IAsyncLifetime
 
         var paused = await target.Client.PutAsJsonAsync("/api/v1/settings/visibility", new
         {
-            hideFromCountry = false,
             minDistanceKm = (int?)null,
             womenForWomen = false,
             verifiedOnly = false,
@@ -309,7 +307,6 @@ public sealed class SettingsFlowTests : IAsyncLifetime
     {
         var response = await client.PutAsJsonAsync("/api/v1/settings/visibility", new
         {
-            hideFromCountry = false,
             minDistanceKm = (int?)null,
             womenForWomen = false,
             verifiedOnly = false,
@@ -342,8 +339,7 @@ public sealed class SettingsFlowTests : IAsyncLifetime
 
     private async Task<Participant> CreateActiveParticipantAsync(
         string email,
-        string gender = "woman",
-        string country = "RO")
+        string gender = "woman")
     {
         var client = await SignInAsync(email);
         var created = await client.PutAsJsonAsync("/api/v1/profile", new
@@ -351,8 +347,6 @@ public sealed class SettingsFlowTests : IAsyncLifetime
             displayName = email.Split('@')[0],
             gender,
             selfDescribeText = (string?)null,
-            countryCode = country,
-            bio = "Here for appreciation, not scores.",
         }, Ct);
         created.StatusCode.Should().Be(HttpStatusCode.OK);
 

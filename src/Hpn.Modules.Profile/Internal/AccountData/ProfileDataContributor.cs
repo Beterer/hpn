@@ -46,8 +46,9 @@ internal sealed class ProfileDataContributor(ProfileDbContext dbContext) : IAcco
             profile.DisplayName,
             Gender = profile.Gender.ToStorageValue(),
             profile.SelfDescribeText,
+            // Internal-only field, but it is the subject's own stored personal data, so
+            // it belongs in their export (right of access) even though it never shows in the UI.
             profile.CountryCode,
-            profile.Bio,
             profile.Verified,
             Status = profile.Status.ToStorageValue(),
             profile.LocationConsent,

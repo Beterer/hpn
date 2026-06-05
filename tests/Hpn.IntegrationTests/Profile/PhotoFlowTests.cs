@@ -271,8 +271,6 @@ public sealed class PhotoFlowTests : IAsyncLifetime
             displayName,
             gender = "woman",
             selfDescribeText = (string?)null,
-            countryCode = "RO",
-            bio = "Here for appreciation, not scores.",
         }, cancellationToken);
         created.StatusCode.Should().Be(HttpStatusCode.OK);
         return created;

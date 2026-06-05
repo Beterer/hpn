@@ -19,8 +19,6 @@ internal sealed record ProfileResponse(
     string DisplayName,
     string Gender,
     string? SelfDescribeText,
-    string? CountryCode,
-    string? Bio,
     bool Verified,
     string Status,
     IReadOnlyCollection<InterestResponse> Interests,
@@ -31,8 +29,6 @@ internal sealed record PublicProfileResponse(
     string DisplayName,
     string Gender,
     string? SelfDescribeText,
-    string? CountryCode,
-    string? Bio,
     bool Verified,
     IReadOnlyCollection<InterestResponse> Interests);
 
@@ -57,8 +53,6 @@ internal static class ProfileResponses
         profile.DisplayName,
         profile.Gender.ToStorageValue(),
         profile.SelfDescribeText,
-        profile.CountryCode,
-        profile.Bio,
         profile.Verified,
         profile.Status.ToStorageValue(),
         ToInterests(profile),
@@ -75,8 +69,6 @@ internal static class ProfileResponses
         profile.DisplayName,
         profile.Gender.ToStorageValue(),
         profile.SelfDescribeText,
-        profile.CountryCode,
-        profile.Bio,
         profile.Verified,
         ToInterests(profile));
 

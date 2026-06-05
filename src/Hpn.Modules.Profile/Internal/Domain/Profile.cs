@@ -9,8 +9,10 @@ internal sealed class UserProfile
     public string DisplayName { get; private set; } = null!;
     public Gender Gender { get; private set; }
     public string? SelfDescribeText { get; private set; }
+    // ISO-3166-1 alpha-2, derived from the request edge (CF-IPCountry) — never
+    // entered by the user and never shown on the feed, card, or public profile.
+    // Its only use is the inbound same-country privacy filter (ADR-028).
     public string? CountryCode { get; private set; }
-    public string? Bio { get; private set; }
     // Coarse location (§10.4): captured only with explicit consent, rounded to
     // 0.1° (~11 km) so a precise position is never stored. Both null until consent.
     public double? GeoLat { get; private set; }
@@ -32,8 +34,6 @@ internal sealed class UserProfile
         string displayName,
         Gender gender,
         string? selfDescribeText,
-        string? countryCode,
-        string? bio,
         DateTimeOffset now)
     {
         var profile = new UserProfile
@@ -45,7 +45,7 @@ internal sealed class UserProfile
             UpdatedAt = now,
         };
 
-        profile.UpdateDetails(displayName, gender, selfDescribeText, countryCode, bio, now);
+        profile.UpdateDetails(displayName, gender, selfDescribeText, now);
         profile.VisibilityPreferences = VisibilityPreferences.Create(profile.Id);
         return profile;
     }
@@ -85,15 +85,28 @@ internal sealed class UserProfile
         string displayName,
         Gender gender,
         string? selfDescribeText,
-        string? countryCode,
-        string? bio,
         DateTimeOffset now)
     {
         DisplayName = displayName.Trim();
         Gender = gender;
         SelfDescribeText = gender == Gender.SelfDescribe ? NormalizeOptional(selfDescribeText) : null;
-        CountryCode = NormalizeCountryCode(countryCode);
-        Bio = NormalizeOptional(bio);
+        UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// Records the request's coarse country (from the edge geo header). A null/blank
+    /// signal — local dev, a missing header, or a placeholder like XX/T1 — leaves any
+    /// previously stored value untouched rather than wiping it (ADR-028).
+    /// </summary>
+    public void SetCountry(string? countryCode, DateTimeOffset now)
+    {
+        var normalized = NormalizeCountryCode(countryCode);
+        if (normalized is null)
+        {
+            return;
+        }
+
+        CountryCode = normalized;
         UpdatedAt = now;
     }
 

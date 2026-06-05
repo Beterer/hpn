@@ -21,19 +21,13 @@ public sealed class DistanceBucketsTests
     [InlineData(46.8, 23.6, DistanceBuckets.Over200Km)]     // ~Cluj, ~250 km
     public void Buckets_by_distance_when_both_points_known(double lat, double lng, string expected)
     {
-        DistanceBuckets.For(Lat, Lng, lat, lng, "RO", "RO").Should().Be(expected);
+        DistanceBuckets.For(Lat, Lng, lat, lng).Should().Be(expected);
     }
 
     [Fact]
-    public void Falls_back_to_different_country_when_a_point_is_missing()
+    public void Is_null_when_a_point_is_missing()
     {
-        DistanceBuckets.For(Lat, Lng, candidateLat: null, candidateLng: null, "RO", "US")
-            .Should().Be(DistanceBuckets.DifferentCountry);
-    }
-
-    [Fact]
-    public void Is_null_when_nothing_can_be_inferred()
-    {
-        DistanceBuckets.For(null, null, null, null, "RO", "RO").Should().BeNull();
+        DistanceBuckets.For(Lat, Lng, candidateLat: null, candidateLng: null).Should().BeNull();
+        DistanceBuckets.For(null, null, null, null).Should().BeNull();
     }
 }

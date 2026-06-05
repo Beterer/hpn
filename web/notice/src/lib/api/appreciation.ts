@@ -7,12 +7,32 @@ export type ReceivedAppreciation = components['schemas']['GetReceivedAppreciatio
 export type SubmitAppreciationRequest = components['schemas']['SubmitAppreciationRequest']
 export type SubmitAppreciationResponse = components['schemas']['SubmitAppreciationResponse']
 
-async function readError(response: Response, fallback: string): Promise<Error> {
+/**
+ * An API failure that carries the HTTP status and the RFC 9457 problem `type`
+ * slug, so callers can tell a *permanent* rejection (the receiver is gone or the
+ * card was already appreciated — retrying this card will never succeed) from a
+ * transient/validation one worth retrying. `problem` is the trailing segment of
+ * the problem type (e.g. "profile-unavailable").
+ */
+export class ApiError extends Error {
+  readonly status: number
+  readonly problem: string | null
+
+  constructor(message: string, status: number, problem: string | null) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.problem = problem
+  }
+}
+
+async function readError(response: Response, fallback: string): Promise<ApiError> {
   try {
-    const body = (await response.json()) as { detail?: string; title?: string }
-    return new Error(body.detail ?? body.title ?? fallback)
+    const body = (await response.json()) as { detail?: string; title?: string; type?: string }
+    const problem = body.type ? (body.type.split('/').pop() ?? null) : null
+    return new ApiError(body.detail ?? body.title ?? fallback, response.status, problem)
   } catch {
-    return new Error(fallback)
+    return new ApiError(fallback, response.status, null)
   }
 }
 

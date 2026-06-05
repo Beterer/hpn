@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FeedProfile } from '../../lib/api/feed'
 import { useAppreciationCategories, useSubmitAppreciation } from '../../lib/query/appreciation'
 import { useFeedQueue } from '../../lib/query/feed'
+import { useSubmitReport } from '../../lib/query/reports'
+import { useBlockProfile } from '../../lib/query/settings'
+import { ApiError } from '../../lib/api/appreciation'
 import { cat, catInk, catSoft, genderGlyph } from './colors'
 import { PortraitFallback } from './ui'
 import { flattenTraits, type FlatTrait } from './taxonomy'
@@ -16,6 +19,36 @@ type Phase = 'idle' | 'reacting' | 'flying'
 // tuned to this envelope.
 const REACT_MS = 560
 const FLY_MS = 460
+
+// The three reasons surfaced on the card's quiet report tray. We deliberately
+// keep it to a short, dignified set (the API in reports.ts accepts the full
+// moderation.report_type taxonomy) — one for content, one for authenticity,
+// one for the most safety-critical case. Labels are the human phrasing; the
+// value is the snake_case slug the backend expects.
+const REPORT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'inappropriate_content', label: 'Inappropriate photo' },
+  { value: 'ai_generated', label: 'Looks AI-generated' },
+  { value: 'underage', label: 'Seems underage' },
+]
+
+// Appreciation failures where retrying *this* card can never succeed — the
+// receiver became unappreciable (paused / blocked / gone between fetch and tap),
+// or this category was already appreciated. Because the feed has no skip, we drop
+// the card instead of wedging the user on it. Everything else (network, a
+// retired trait, validation) keeps the card and surfaces a retryable error.
+const PERMANENT_APPRECIATION_PROBLEMS = new Set([
+  'profile-unavailable',
+  'duplicate-appreciation',
+  'self-appreciation',
+])
+
+function isPermanentAppreciationFailure(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.problem !== null &&
+    PERMANENT_APPRECIATION_PROBLEMS.has(error.problem)
+  )
+}
 
 function vibrate(ms: number) {
   try {
@@ -103,8 +136,11 @@ function FeedDeck({
   onAdvance: () => void
 }) {
   const submit = useSubmitAppreciation()
+  const report = useSubmitReport()
+  const block = useBlockProfile()
   const [phase, setPhase] = useState<Phase>('idle')
   const [open, setOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const [chosen, setChosen] = useState<{ label: string; hue: number } | null>(null)
   const [reported, setReported] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -162,6 +198,13 @@ function FeedDeck({
           flyIfReady()
         },
         onError: (e) => {
+          // Can't ever appreciate this card → skip it rather than trap the user
+          // (the feed offers no other way forward). Report/Block are still there
+          // for a deliberate exit; this just unwedges the common races.
+          if (isPermanentAppreciationFailure(e)) {
+            onAdvance()
+            return
+          }
           setPhase('idle')
           setChosen(null)
           setError(e.message)
@@ -172,8 +215,55 @@ function FeedDeck({
 
   const toggleTray = () => {
     if (phase === 'idle') {
+      setReportOpen(false)
       setOpen((o) => !o)
     }
+  }
+
+  const toggleReport = () => {
+    if (phase !== 'idle' || reported) {
+      return
+    }
+    setError(null)
+    setOpen(false)
+    setReportOpen((o) => !o)
+  }
+
+  // Mirrors pick(): one tap on a reason fires the report and acknowledges it in
+  // place. We keep the card where it is — reporting isn't appreciating, so it
+  // must not advance the feed — and flip the button to its "received" state.
+  const sendReport = (type: string) => {
+    if (report.isPending || !profile.profileId) {
+      return
+    }
+    vibrate(10)
+    setError(null)
+    report.mutate(
+      { targetProfileId: profile.profileId, type },
+      {
+        onSuccess: () => {
+          setReported(true)
+          setReportOpen(false)
+        },
+        onError: (e) => setError(e.message),
+      },
+    )
+  }
+
+  // Block is the decisive exit, not a report reason: one tap drops the card for
+  // good (the queue's seen-set + the eligibility filter keep them gone both
+  // directions). It's reversible from You → Blocked, so no confirm step. On
+  // success the card advances and this component unmounts, so state resets.
+  const blockAndAdvance = () => {
+    if (block.isPending || phase !== 'idle' || !profile.profileId) {
+      return
+    }
+    vibrate(14)
+    setError(null)
+    block.mutate(profile.profileId, {
+      onSuccess: () => onAdvance(),
+      onError: (e) => setError(e.message),
+    })
   }
 
   const shiftPhoto = (delta: number) => {
@@ -259,12 +349,14 @@ function FeedDeck({
               </>
             )}
 
-            {/* quiet report — second plane (visual only for now; not wired to the API) */}
+            {/* quiet report — second plane */}
             <button
-              className={`report-btn ${reported ? 'done' : ''}`}
-              onClick={() => setReported(true)}
+              className={`report-btn ${reported ? 'done' : ''} ${reportOpen ? 'open' : ''}`}
+              onClick={toggleReport}
+              disabled={phase !== 'idle' || reported}
               title={reported ? 'Reported — thank you' : 'Report this profile'}
               aria-label="Report"
+              aria-expanded={reportOpen}
             >
               {reported ? (
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
@@ -272,6 +364,33 @@ function FeedDeck({
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V4h11l-1 4 6 0v9H9l1-4H4" /><path d="M4 21V13" /></svg>
               )}
             </button>
+
+            {reportOpen && (
+              <div className="tray report-tray">
+                <p className="cloud-q">Something off here?</p>
+                <div className="cloud-wrap">
+                  {REPORT_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      className="cloud-chip report-chip"
+                      onClick={() => sendReport(o.value)}
+                      disabled={report.isPending || block.isPending}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="report-foot">Private. We review every report.</p>
+                <button
+                  className="block-row"
+                  onClick={blockAndAdvance}
+                  disabled={report.isPending || block.isPending}
+                >
+                  <span className="block-row-main">{block.isPending ? 'Blocking…' : 'Block this person'}</span>
+                  <span className="block-row-sub">You won't see each other again.</span>
+                </button>
+              </div>
+            )}
 
             {/* reward layers */}
             {phase === 'reacting' && chosen && (
@@ -335,7 +454,15 @@ function FeedDeck({
       </div>
 
       <p className="feed-hint">
-        {error ? error : open ? 'Tap a word you mean.' : 'The only way forward is to appreciate.'}
+        {error
+          ? error
+          : reportOpen
+            ? 'Tap a reason — it stays private.'
+            : reported
+              ? 'Reported — thank you for looking out.'
+              : open
+                ? 'Tap a word you mean.'
+                : 'The only way forward is to appreciate.'}
       </p>
     </div>
   )

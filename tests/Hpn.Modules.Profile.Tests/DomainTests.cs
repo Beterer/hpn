@@ -15,15 +15,12 @@ public sealed class DomainTests
             "  Rowan  ",
             Gender.SelfDescribe,
             "  genderqueer  ",
-            " ro ",
-            "  Notices ordinary kindness. ",
             now);
 
         profile.DisplayName.Should().Be("Rowan");
         profile.Gender.Should().Be(Gender.SelfDescribe);
         profile.SelfDescribeText.Should().Be("genderqueer");
-        profile.CountryCode.Should().Be("RO");
-        profile.Bio.Should().Be("Notices ordinary kindness.");
+        profile.CountryCode.Should().BeNull(); // never set from the form; derived from the request edge
         profile.Verified.Should().BeFalse();
         profile.Status.Should().Be(ProfileStatus.Draft);
         profile.VisibilityPreferences.HideFromCountry.Should().BeFalse();
@@ -41,21 +38,32 @@ public sealed class DomainTests
             "Rowan",
             Gender.SelfDescribe,
             "genderqueer",
-            "RO",
-            null,
             now);
 
-        profile.UpdateDetails("Rowan", Gender.Woman, "should disappear", "RO", null, now.AddMinutes(1));
+        profile.UpdateDetails("Rowan", Gender.Woman, "should disappear", now.AddMinutes(1));
 
         profile.Gender.Should().Be(Gender.Woman);
         profile.SelfDescribeText.Should().BeNull();
     }
 
     [Fact]
+    public void Set_country_normalizes_and_a_null_signal_keeps_the_stored_value()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, now);
+
+        profile.SetCountry(" ro ", now);
+        profile.CountryCode.Should().Be("RO"); // trimmed + upper-cased
+
+        profile.SetCountry(null, now.AddMinutes(1));
+        profile.CountryCode.Should().Be("RO"); // a missing edge signal never wipes it
+    }
+
+    [Fact]
     public void Status_lifecycle_runs_draft_to_active_to_paused()
     {
         var now = DateTimeOffset.UtcNow;
-        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, now);
 
         profile.Pause(now).Should().BeFalse();
         profile.Status.Should().Be(ProfileStatus.Draft);
@@ -73,7 +81,7 @@ public sealed class DomainTests
     public void Set_location_rounds_to_a_coarse_grid_with_consent()
     {
         var now = DateTimeOffset.UtcNow;
-        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, now);
 
         profile.SetLocation(44.4267, 26.1025, consent: true, now.AddMinutes(1));
 
@@ -86,7 +94,7 @@ public sealed class DomainTests
     public void Set_location_without_consent_clears_any_stored_point()
     {
         var now = DateTimeOffset.UtcNow;
-        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, now);
         profile.SetLocation(44.4, 26.1, consent: true, now);
 
         profile.SetLocation(44.4, 26.1, consent: false, now.AddMinutes(1));
@@ -100,7 +108,7 @@ public sealed class DomainTests
     public void Mark_deleted_takes_the_profile_out_of_the_feed()
     {
         var now = DateTimeOffset.UtcNow;
-        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, now);
         profile.Activate(now);
 
         profile.MarkDeleted(now.AddMinutes(1));
@@ -114,7 +122,7 @@ public sealed class DomainTests
     public void Restrict_then_clear_returns_an_active_profile_to_the_feed()
     {
         var now = DateTimeOffset.UtcNow;
-        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, now);
         profile.Activate(now);
 
         profile.Restrict(now.AddMinutes(1)).Should().BeTrue();
@@ -130,7 +138,7 @@ public sealed class DomainTests
     public void Clearing_a_restriction_honours_a_self_pause_set_beforehand()
     {
         var now = DateTimeOffset.UtcNow;
-        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, now);
         profile.Activate(now);
         profile.Pause(now.AddMinutes(1)); // the member took a break first
 
@@ -147,7 +155,7 @@ public sealed class DomainTests
     public void Moderation_never_resurrects_a_deleted_account()
     {
         var now = DateTimeOffset.UtcNow;
-        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, "RO", null, now);
+        var profile = UserProfile.Create(Guid.CreateVersion7(), "Rowan", Gender.Woman, null, now);
         profile.Activate(now);
         profile.MarkDeleted(now.AddMinutes(1));
 
