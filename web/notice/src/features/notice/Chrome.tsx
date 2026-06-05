@@ -41,7 +41,15 @@ const TABS: { id: NavName; label: string }[] = [
   { id: 'you', label: 'You' },
 ]
 
-export function BottomNav({ tab, onTab }: { tab: NavName; onTab: (t: NavName) => void }) {
+export function BottomNav({
+  tab,
+  onTab,
+  hasUnseen = false,
+}: {
+  tab: NavName
+  onTab: (t: NavName) => void
+  hasUnseen?: boolean
+}) {
   return (
     <nav className="bottom-nav">
       {TABS.map((t) => (
@@ -51,7 +59,10 @@ export function BottomNav({ tab, onTab }: { tab: NavName; onTab: (t: NavName) =>
           onClick={() => onTab(t.id)}
           aria-current={tab === t.id ? 'page' : undefined}
         >
-          <NavIcon name={t.id} active={tab === t.id} />
+          <span className="nav-icon-wrap">
+            <NavIcon name={t.id} active={tab === t.id} />
+            {t.id === 'received' && hasUnseen && <span className="nav-dot" aria-label="New appreciation" />}
+          </span>
           <span>{t.label}</span>
         </button>
       ))}

@@ -598,3 +598,26 @@ These are explicit phase-2+ deferrals — recorded so "why isn't there an X?" ha
   AI-profile detection, a native wrapper (Capacitor), monetization** — product phase 2+.
 
 Each becomes a new ADR (superseding the relevant deferral) when picked up.
+
+### ADR-029 — Notification module: appreciation notifications via client polling
+**Status:** Accepted.
+**Context:** The design handoff includes a one-time "Someone just noticed your ..." toast and
+we want a quiet "something new" signal on the Received tab. v1 has no notification subsystem,
+real-time transport, or background worker.
+**Decision:**
+- Introduce a `Notification` module (schema `notification`) that subscribes to
+  `AppreciationCreated` and persists one receiver notification per appreciation, idempotent on
+  `(user_id, type, source_id)`.
+- Delivery is client polling of `GET /notifications/summary` about every 20 seconds. No
+  SignalR/WebSocket/SSE, Redis, or worker is added.
+- Notification creation funnels through one internal `NotificationWriter` so a future
+  server-push transport can be added behind its own ADR.
+- The Received badge is a dot, not a count, honoring `ADR-014`. The payload never stores or
+  reveals the sender, only what was appreciated.
+**Consequences:** The event handler writes through the Notification module's own DbContext and
+transaction, separate from appreciation submission. Dispatch occurs just before the submit
+commit, so a rolled-back appreciation could in principle leave an orphan notification; this
+small window is accepted in v1, and an outbox would require a separate ADR. The unique source
+index prevents duplicates. `AppreciationCreated` gained `TraitLabel` and `CategorySlug` so the
+notification needs no read-back into Appreciation. Because the module stores personal data, it
+registers an `IAccountDataContributor`.
