@@ -146,10 +146,25 @@ function FeedDeck({
   const [error, setError] = useState<string | null>(null)
   const [photoIndex, setPhotoIndex] = useState(0)
   const timers = useRef<number[]>([])
+  const trayRef = useRef<HTMLDivElement>(null)
+  const fabRef = useRef<HTMLButtonElement>(null)
   const photos = [...(profile.photos ?? [])].sort((a, b) => Number(a.position) - Number(b.position))
   const photoCount = photos.length
 
   useEffect(() => () => timers.current.forEach((t) => clearTimeout(t)), [])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (
+        trayRef.current?.contains(e.target as Node) ||
+        fabRef.current?.contains(e.target as Node)
+      ) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
 
   const pick = (trait: FlatTrait) => {
     if (phase !== 'idle' || submit.isPending || !profile.profileId) {
@@ -418,6 +433,7 @@ function FeedDeck({
             </div>
 
             <button
+              ref={fabRef}
               className={`fab ${open ? 'open' : ''} ${phase !== 'idle' ? 'busy' : ''}`}
               onClick={toggleTray}
               disabled={phase !== 'idle'}
@@ -432,7 +448,7 @@ function FeedDeck({
             </button>
 
             {open && (
-              <div className="tray">
+              <div ref={trayRef} className="tray">
                 <p className="cloud-q">Appreciate something real</p>
                 <div className="cloud-wrap">
                   {traits.map((t, i) => (

@@ -219,7 +219,8 @@ body {
 .block-row-sub { font-size: 11.5px; color: var(--ink-3); }
 
 /* appreciate FAB */
-.fab {
+/* scoped to .notice-root so the orange gradient outranks the `.notice-root button` reset above */
+.notice-root .fab {
   position: absolute; right: 16px; bottom: 16px; z-index: 5;
   width: 60px; height: 60px; border-radius: 50%; color: #fff;
   display: inline-flex; align-items: center; justify-content: center;
