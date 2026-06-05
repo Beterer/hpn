@@ -65,8 +65,6 @@ public sealed class ProfileFlowTests : IAsyncLifetime
             displayName = "  Rowan  ",
             gender = "self_describe",
             selfDescribeText = "  genderqueer  ",
-            countryCode = "ro",
-            bio = "A person who notices practical kindness.",
         }, ct);
         created.StatusCode.Should().Be(HttpStatusCode.OK);
         using (var doc = await ReadJsonAsync(created, ct))
@@ -74,10 +72,8 @@ public sealed class ProfileFlowTests : IAsyncLifetime
             doc.RootElement.GetProperty("displayName").GetString().Should().Be("Rowan");
             doc.RootElement.GetProperty("gender").GetString().Should().Be("self_describe");
             doc.RootElement.GetProperty("selfDescribeText").GetString().Should().Be("genderqueer");
-            doc.RootElement.GetProperty("countryCode").GetString().Should().Be("RO");
             doc.RootElement.GetProperty("status").GetString().Should().Be("draft");
             var visibility = doc.RootElement.GetProperty("visibilityPreferences");
-            visibility.GetProperty("hideFromCountry").GetBoolean().Should().BeFalse();
             visibility.GetProperty("womenForWomen").GetBoolean().Should().BeFalse();
             visibility.GetProperty("verifiedOnly").GetBoolean().Should().BeFalse();
             visibility.GetProperty("paused").GetBoolean().Should().BeFalse();
@@ -107,8 +103,6 @@ public sealed class ProfileFlowTests : IAsyncLifetime
             displayName = "Rowan A.",
             gender = "woman",
             selfDescribeText = "not stored",
-            countryCode = "us",
-            bio = "Still here for appreciation, not scores.",
         }, ct);
         edited.StatusCode.Should().Be(HttpStatusCode.OK);
         using (var doc = await ReadJsonAsync(edited, ct))
@@ -116,7 +110,6 @@ public sealed class ProfileFlowTests : IAsyncLifetime
             doc.RootElement.GetProperty("displayName").GetString().Should().Be("Rowan A.");
             doc.RootElement.GetProperty("gender").GetString().Should().Be("woman");
             doc.RootElement.GetProperty("selfDescribeText").ValueKind.Should().Be(JsonValueKind.Null);
-            doc.RootElement.GetProperty("countryCode").GetString().Should().Be("US");
             doc.RootElement.GetProperty("status").GetString().Should().Be("active");
         }
     }
@@ -133,8 +126,6 @@ public sealed class ProfileFlowTests : IAsyncLifetime
             displayName = "Mira",
             gender = "woman",
             selfDescribeText = (string?)null,
-            countryCode = "RO",
-            bio = "Here to be noticed for the small true things.",
         }, ct);
         created.StatusCode.Should().Be(HttpStatusCode.OK);
         var profileId = await ReadProfileIdAsync(created, ct);

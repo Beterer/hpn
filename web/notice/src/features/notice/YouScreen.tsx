@@ -96,7 +96,7 @@ function YouMain({ profile, onOpen }: { profile: Profile; onOpen: (s: Sub) => vo
           {profile.gender === 'woman' && (
             <Toggle label="Women appreciating women only" on={vis.womenForWomen} onToggle={() => save({ womenForWomen: !vis.womenForWomen })} />
           )}
-          <Toggle label="Hide me from people in my own country" on={vis.hideFromCountry} onToggle={() => save({ hideFromCountry: !vis.hideFromCountry })} />
+          <Toggle label="Hide me from people in my own country" hint="Based on your approximate location — never shown." on={vis.hideFromCountry} onToggle={() => save({ hideFromCountry: !vis.hideFromCountry })} />
           <Toggle label="Only connect with verified people" on={vis.verifiedOnly} onToggle={() => save({ verifiedOnly: !vis.verifiedOnly })} />
         </div>
         <p className="priv-note">Location stays coarse — rounded to roughly 11 km, broad distance bands only. Never your exact spot.</p>

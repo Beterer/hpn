@@ -25,14 +25,5 @@ internal sealed class UpsertProfileValidator : AbstractValidator<UpsertProfileRe
             .NotEmpty()
             .When(x => string.Equals(x.Gender, "self_describe", StringComparison.OrdinalIgnoreCase))
             .WithMessage("Self-describe text is required when gender is self_describe.");
-
-        RuleFor(x => x.CountryCode)
-            .Matches("^[A-Za-z]{2}$")
-            .When(x => !string.IsNullOrWhiteSpace(x.CountryCode))
-            .WithMessage("Country must be an ISO-3166-1 alpha-2 code.");
-
-        RuleFor(x => x.Bio)
-            .MaximumLength(500)
-            .When(x => !string.IsNullOrWhiteSpace(x.Bio));
     }
 }

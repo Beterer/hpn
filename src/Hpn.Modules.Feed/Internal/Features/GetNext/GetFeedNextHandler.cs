@@ -40,7 +40,7 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
     {
         var batchSize = Math.Clamp(limit ?? DefaultLimit, 1, MaxLimit);
 
-        // The viewer's own profile drives the audience/country rules below. No
+        // The viewer's own profile drives the audience + same-country rules below. No
         // profile yet (mid-onboarding) → nothing to browse.
         var viewerRow = await dbContext.Profiles
             .AsNoTracking()
@@ -107,8 +107,6 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
                 p.DisplayName,
                 p.Gender,
                 p.SelfDescribeText,
-                p.CountryCode,
-                p.Bio,
                 p.Verified,
                 p.GeoLat,
                 p.GeoLng,
@@ -138,12 +136,10 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
             r.DisplayName,
             r.Gender,
             r.SelfDescribeText,
-            r.CountryCode,
-            r.Bio,
             r.Verified,
             r.Photos,
             r.Interests,
-            DistanceBuckets.For(viewerLat, viewerLng, r.GeoLat, r.GeoLng, viewerCountry, r.CountryCode)));
+            DistanceBuckets.For(viewerLat, viewerLng, r.GeoLat, r.GeoLng)));
 
         // Restore the strategy's chosen order (the DB returned cards unordered).
         var byId = cards.ToDictionary(c => c.ProfileId);
@@ -199,8 +195,6 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
                 p.DisplayName,
                 p.Gender,
                 p.SelfDescribeText,
-                p.CountryCode,
-                p.Bio,
                 p.Verified,
                 p.GeoLat,
                 p.GeoLng,
@@ -228,12 +222,10 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
             r.DisplayName,
             r.Gender,
             r.SelfDescribeText,
-            r.CountryCode,
-            r.Bio,
             r.Verified,
             r.Photos,
             r.Interests,
-            DistanceBuckets.For(null, null, r.GeoLat, r.GeoLng, null, r.CountryCode)));
+            DistanceBuckets.For(null, null, r.GeoLat, r.GeoLng)));
 
         var byId = cards.ToDictionary(c => c.ProfileId);
         return [.. selectedIds.Where(byId.ContainsKey).Select(id => byId[id])];
@@ -335,8 +327,9 @@ internal sealed class GetFeedNextHandler(FeedDbContext dbContext, IFeedRankingSt
                     ((c.GeoLat!.Value - vLat) * degToRad)) >= minKm);
         }
 
-        // Country rule (§7.3, §10.4): a candidate who hides from their own country
-        // is removed from the feed of any viewer in the same country.
+        // Same-country privacy rule (ADR-028): a candidate who enabled
+        // hide_from_country is removed from the feed of any viewer whose IP-derived
+        // country matches theirs. Country is internal — used here, never returned.
         if (viewerCountry is not null)
         {
             query = query.Where(c => !(

@@ -16,6 +16,9 @@ internal sealed class ProfileDevelopmentDataSeeder(
         "Owen", "Lea", "Ren", "Daria", "Milo", "Zara", "Cora", "Remy", "Alina", "Ivo",
     ];
 
+    // Internal-only country (ADR-028) — seeded directly here so the same-country
+    // privacy filter has varied data to exercise; in real requests it comes from the
+    // edge geo header, never the UI.
     private static readonly string[] Countries = ["RO", "US", "DE", "FR", "NL", "ES", "IT", "GB"];
 
     public int Phase => 20;
@@ -33,7 +36,6 @@ internal sealed class ProfileDevelopmentDataSeeder(
             "Test Notice",
             Gender.Woman,
             "RO",
-            "A ready-to-use development profile with enough appreciation history to explore Notice.",
             verified: true,
             latitude: 44.4,
             longitude: 26.1,
@@ -53,7 +55,6 @@ internal sealed class ProfileDevelopmentDataSeeder(
                 Names[i % Names.Length],
                 GenderFor(i),
                 Countries[i % Countries.Length],
-                BioFor(i),
                 verified: i % 5 == 0,
                 latitude: 44.4 + (i % 7 * 0.4),
                 longitude: 26.1 + (i % 9 * 0.5),
@@ -71,7 +72,6 @@ internal sealed class ProfileDevelopmentDataSeeder(
         string displayName,
         Gender gender,
         string countryCode,
-        string bio,
         bool verified,
         double latitude,
         double longitude,
@@ -87,14 +87,15 @@ internal sealed class ProfileDevelopmentDataSeeder(
 
         if (profile is null)
         {
-            profile = UserProfile.Create(userId, displayName, gender, null, countryCode, bio, now);
+            profile = UserProfile.Create(userId, displayName, gender, null, now);
             dbContext.Profiles.Add(profile);
         }
         else
         {
-            profile.UpdateDetails(displayName, gender, null, countryCode, bio, now);
+            profile.UpdateDetails(displayName, gender, null, now);
         }
 
+        profile.SetCountry(countryCode, now);
         profile.SetVerified(verified, now);
         profile.SetLocation(latitude, longitude, consent: true, now);
         profile.VisibilityPreferences.Update(
@@ -125,15 +126,6 @@ internal sealed class ProfileDevelopmentDataSeeder(
         _ => Gender.Woman,
     };
 
-    private static string BioFor(int index) => (index % 6) switch
-    {
-        0 => "Usually found near good light, quiet music, and a half-finished notebook.",
-        1 => "Likes generous details, fresh coffee, and people who notice small things.",
-        2 => "Here for warm, specific appreciation and unhurried browsing.",
-        3 => "Collects tiny rituals: long walks, film stills, late breakfasts.",
-        4 => "Drawn to thoughtful style, bright conversation, and patient curiosity.",
-        _ => "A development profile with enough texture to make the feed feel alive.",
-    };
 }
 
 internal sealed class ProfileActivationDevelopmentDataSeeder(

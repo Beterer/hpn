@@ -229,8 +229,6 @@ public sealed class ModerationFlowTests : IAsyncLifetime
             displayName = email.Split('@')[0],
             gender = "woman",
             selfDescribeText = (string?)null,
-            countryCode = "RO",
-            bio = "Here for appreciation, not scores.",
         }, Ct);
         created.StatusCode.Should().Be(HttpStatusCode.OK);
 

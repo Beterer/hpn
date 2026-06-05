@@ -191,8 +191,6 @@ public sealed class GuestFlowTests : IAsyncLifetime
             displayName = "Guest",
             gender = "woman",
             selfDescribeText = (string?)null,
-            countryCode = "RO",
-            bio = "Trying to sneak through.",
         }, Ct);
         profile.StatusCode.Should().BeOneOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden);
     }
@@ -245,8 +243,6 @@ public sealed class GuestFlowTests : IAsyncLifetime
             displayName = email.Split('@')[0],
             gender = "woman",
             selfDescribeText = (string?)null,
-            countryCode = "RO",
-            bio = "Here for appreciation, not scores.",
         }, Ct);
         created.StatusCode.Should().Be(HttpStatusCode.OK);
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 HPN (internal codename, *human-perception-network*) is an **appreciation-first social platform**; the user-facing product is **Notice**. Backend is a **.NET 10** modular-monolith Web API; frontend is a Vite + React PWA in `web/notice`.
 
-**`HPN-BACKBONE.md` is the source of truth** for architecture and product decisions; `MILESTONES.md` is the build playbook. When this file and the backbone disagree, the backbone wins. If you change a decision, update the backbone's **§16 decisions log in the same change**. The MVP (milestones M0–M10) is fully implemented and merged to `main`; the numeric tuning constants in §10/§16.2 are the only values expected to change with real data — don't invent *new* product decisions silently, flag them.
+**`docs/architecture.md` and `docs/decisions.md` (the ADR log) are the source of truth** for architecture and product decisions. When this file and those docs disagree, the docs win. If you change a decision, append/supersede an ADR in `docs/decisions.md` **in the same change** (append-only — supersede rather than rewrite). The MVP is fully implemented and merged to `main`; the numeric tuning constants called out in the ADRs (each named and centralized in code) are the only values expected to change with real data — don't invent *new* product decisions silently, flag them.
 
 ## Commands
 
@@ -32,7 +32,7 @@ Migrations (one DbContext per module, schema-per-module):
 - **Never reach into another module's internals.** Depend only on `Hpn.Modules.<Other>.Contracts` + `Hpn.SharedKernel`. The `Hpn.ArchitectureTests` project (NetArchTest) fails CI if any module references another's `.Internal` namespace. If it fails, fix the design — don't weaken the test.
 - **Schema-per-module.** A module owns its `snake_case` Postgres schema and migrations. **No cross-schema foreign keys** — reference other modules' rows by `uuid`, enforce integrity in app logic.
 - **Writes are strictly isolated**: a command mutates only its own module's tables. **Cross-schema reads are allowed only inside a sanctioned read model** (a keyless query type via `FromSqlInterpolated`, or a Postgres view) — never ad hoc.
-- **No Dapper, no mediator library, no background worker in v1.** EF Core everywhere; DI handlers + endpoint filters; all processing synchronous in-request. Wanting any of these is a §16 conversation, not a quiet addition.
+- **No Dapper, no mediator library, no background worker in v1.** EF Core everywhere; DI handlers + endpoint filters; all processing synchronous in-request. Wanting any of these is an ADR conversation (`docs/decisions.md`), not a quiet addition.
 
 ## Modules & how they talk
 
@@ -63,7 +63,7 @@ Trust score is computed on demand from cross-module signals (account age, photo,
 - Auth: email magic link → opaque, revocable **server-side session** over an httpOnly Secure SameSite cookie. The SPA never handles tokens. Admin endpoints gate via an endpoint filter checking `IIdentityApi.IsAdminAsync`.
 - Storage: binaries live behind `IObjectStore` (MinIO dev / R2 prod, config-swapped) — never in a module's DB. Validate + re-encode + strip EXIF on every uploaded image.
 
-## Product principles that constrain code (backbone §2) — enforce in code and UX
+## Product principles that constrain code (see `docs/decisions.md` ADR-014) — enforce in code and UX
 
 - **Positive-only, appreciation-gated.** No dislike/skip/negative action exists anywhere; advancing the feed requires choosing an appreciation.
 - **No comparison or ranking surfaces.** No public counts, scores, or leaderboards. Fingerprint/received use perception phrasing ("People often perceive…"), gated behind **≥20** received appreciations.
@@ -80,4 +80,4 @@ Trust score is computed on demand from cross-module signals (account age, photo,
 Code, repo, namespaces (`Hpn.*`), DB schemas, infra → **HPN**. User-facing app, copy, branding, the `web/notice` client → **Notice**.
 
 ## When in doubt
-Prefer the simplest thing that respects the boundary rules and product principles. Don't add infrastructure (Redis, workers, new libraries) speculatively — the backbone defers these deliberately. Surface the decision instead of guessing on anything in §16.2. Commit/push only when asked; branch off `main` first.
+Prefer the simplest thing that respects the boundary rules and product principles. Don't add infrastructure (Redis, workers, new libraries) speculatively — the ADRs defer these deliberately (`docs/decisions.md`, "Deferred" section). Surface the decision instead of guessing on anything covered by an ADR. Commit/push only when asked; branch off `main` first.

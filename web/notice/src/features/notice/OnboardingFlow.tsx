@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Profile } from '../../lib/api/profile'
 import { useInterests, useUpdateProfileInterests, useUpdateProfileStatus, useUpsertProfile } from '../../lib/query/profile'
-import { useDeleteProfilePhoto, useMyPhotos, useUploadProfilePhoto } from '../../lib/query/photos'
+import { useDeleteProfilePhoto, useMyPhotos, useUpdatePhotoOrder, useUploadProfilePhoto } from '../../lib/query/photos'
 import { useUpdateVisibility } from '../../lib/query/settings'
 import { Wordmark } from './ui'
 
@@ -33,12 +33,11 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
   const photos = useMyPhotos(true)
   const uploadPhoto = useUploadProfilePhoto()
   const deletePhoto = useDeleteProfilePhoto()
+  const reorderPhotos = useUpdatePhotoOrder()
 
   const [step, setStep] = useState(0)
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
   const [gender, setGender] = useState(profile?.gender ?? '')
-  const [countryCode, setCountryCode] = useState(profile?.countryCode ?? '')
-  const [bio, setBio] = useState(profile?.bio ?? '')
   const [selected, setSelected] = useState<Set<string>>(() => new Set(profile?.interests?.map((i) => i.id) ?? []))
   const [vis, setVis] = useState<Visibility>({
     womenForWomen: profile?.visibilityPreferences?.womenForWomen ?? false,
@@ -49,6 +48,21 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
 
   const photoList = photos.data ?? []
   const slots = [0, 1, 2]
+  // Mirror the backend activation requirement (a ready photo) so it's enforced on the
+  // step that owns photos — not deferred to "Activate", which strands the user two
+  // screens away from where they'd fix it.
+  const hasReadyPhoto = photoList.some((p) => p.status === 'ready')
+
+  // Position 0 is the feed primary. The backend already supports a full reorder
+  // (PUT /profile/photos/order); "make primary" is the one move that matters here
+  // — move a photo to the front, keep the rest in their current order.
+  const makePrimary = (photoId: string) => {
+    if (reorderPhotos.isPending) {
+      return
+    }
+    const ids = photoList.map((p) => p.id)
+    reorderPhotos.mutate([photoId, ...ids.filter((id) => id !== photoId)])
+  }
 
   const saveBasics = async () => {
     setError(null)
@@ -56,13 +70,19 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
       setError('Add a display name and choose how you appear.')
       return
     }
+    if (uploadPhoto.isPending) {
+      setError('Hang on — your photo is still uploading.')
+      return
+    }
+    if (!hasReadyPhoto) {
+      setError('Add at least one photo so people can notice you.')
+      return
+    }
     try {
       await upsert.mutateAsync({
         displayName: displayName.trim(),
         gender,
         selfDescribeText: null,
-        countryCode: countryCode.trim() || null,
-        bio: bio.trim() || null,
       })
       setStep(1)
     } catch (e) {
@@ -153,6 +173,20 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
                         >
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
                         </button>
+                        {slot === 0 ? (
+                          <span className="pslot-tag primary">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z" /></svg>
+                            Primary
+                          </span>
+                        ) : (
+                          <button
+                            className="pslot-tag make"
+                            disabled={reorderPhotos.isPending}
+                            onClick={() => makePrimary(photo.id)}
+                          >
+                            Make primary
+                          </button>
+                        )}
                       </>
                     ) : (
                       <>
@@ -178,11 +212,6 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
               <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="What should people call you?" />
             </label>
 
-            <label className="field">
-              Country <span className="field-em">(optional, coarse only)</span>
-              <input value={countryCode} onChange={(e) => setCountryCode(e.target.value.toUpperCase().slice(0, 2))} placeholder="RO" />
-            </label>
-
             <div className="field">
               <span>How you appear <span className="field-em">(shown as a small, quiet glyph)</span></span>
               <div className="seg-grid">
@@ -193,11 +222,6 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
                 ))}
               </div>
             </div>
-
-            <label className="field">
-              A line about you <span className="field-em">(optional)</span>
-              <input value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Makes a strong espresso…" />
-            </label>
 
             <button className="big-btn primary" disabled={busy} onClick={() => void saveBasics()}>
               {upsert.isPending ? 'Saving…' : 'Continue'}
@@ -238,7 +262,7 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
               {gender === 'woman' && (
                 <Toggle label="Women appreciating women only" hint="Only women will see and appreciate you." on={vis.womenForWomen} onToggle={() => setVis((v) => ({ ...v, womenForWomen: !v.womenForWomen }))} />
               )}
-              <Toggle label="Hide me from people in my own country" on={vis.hideFromCountry} onToggle={() => setVis((v) => ({ ...v, hideFromCountry: !v.hideFromCountry }))} />
+              <Toggle label="Hide me from people in my own country" hint="Based on your approximate location — never shown." on={vis.hideFromCountry} onToggle={() => setVis((v) => ({ ...v, hideFromCountry: !v.hideFromCountry }))} />
               <Toggle label="Only connect with verified people" on={vis.verifiedOnly} onToggle={() => setVis((v) => ({ ...v, verifiedOnly: !v.verifiedOnly }))} />
             </div>
             <p className="priv-note">Your location is kept coarse — rounded to roughly 11 km, with only broad distance bands. Never your exact spot.</p>

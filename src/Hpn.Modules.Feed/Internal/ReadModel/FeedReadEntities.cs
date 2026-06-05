@@ -13,8 +13,8 @@ internal sealed class FeedProfileRow
     public string DisplayName { get; init; } = null!;
     public string Gender { get; init; } = null!;
     public string? SelfDescribeText { get; init; }
+    // Internal-only (ADR-028): read for the same-country eligibility rule, never projected onto a card.
     public string? CountryCode { get; init; }
-    public string? Bio { get; init; }
     public double? GeoLat { get; init; }
     public double? GeoLng { get; init; }
     public bool Verified { get; init; }

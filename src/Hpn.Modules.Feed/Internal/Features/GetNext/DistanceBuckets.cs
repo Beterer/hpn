@@ -3,9 +3,8 @@ namespace Hpn.Modules.Feed.Internal.Features.GetNext;
 /// <summary>
 /// Turns two coarse points into a broad distance band for display (backbone §10.4).
 /// The UI must never show an exact distance, so the feed only ever carries one of
-/// these buckets. Thresholds are launch values and tunable. When there is no
-/// usable coordinate, it falls back to a country-level hint, or null if even that
-/// is unknown.
+/// these buckets. Thresholds are launch values and tunable. When either side has no
+/// usable coordinate, there is nothing to measure and the band is null.
 /// </summary>
 internal static class DistanceBuckets
 {
@@ -13,15 +12,12 @@ internal static class DistanceBuckets
     public const string Under50Km = "under_50km";
     public const string Between50And200Km = "50_200km";
     public const string Over200Km = "200km_plus";
-    public const string DifferentCountry = "different_country";
 
     public static string? For(
         double? viewerLat,
         double? viewerLng,
         double? candidateLat,
-        double? candidateLng,
-        string? viewerCountry,
-        string? candidateCountry)
+        double? candidateLng)
     {
         if (viewerLat is double vLat && viewerLng is double vLng &&
             candidateLat is double cLat && candidateLng is double cLng)
@@ -36,13 +32,7 @@ internal static class DistanceBuckets
             };
         }
 
-        // No coordinates to measure with — fall back to a country-level hint.
-        if (viewerCountry is not null && candidateCountry is not null &&
-            !string.Equals(viewerCountry, candidateCountry, StringComparison.OrdinalIgnoreCase))
-        {
-            return DifferentCountry;
-        }
-
+        // No coordinates to measure with — no distance band.
         return null;
     }
 

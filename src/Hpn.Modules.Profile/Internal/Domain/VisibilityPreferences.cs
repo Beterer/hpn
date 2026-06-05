@@ -3,6 +3,9 @@ namespace Hpn.Modules.Profile.Internal.Domain;
 internal sealed class VisibilityPreferences
 {
     public Guid ProfileId { get; private set; }
+    // Inbound same-country privacy (ADR-028): when set, this profile is removed from
+    // the feed of any viewer in the same (IP-derived) country. The country itself is
+    // never shown; only this opt-out toggle is user-facing.
     public bool HideFromCountry { get; private set; }
     public int? MinDistanceKm { get; private set; }
     public bool WomenForWomen { get; private set; }

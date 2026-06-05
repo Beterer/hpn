@@ -11,6 +11,7 @@ using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Hpn.SharedKernel;
 using Hpn.SharedKernel.Auth;
+using Hpn.SharedKernel.Geo;
 using Hpn.SharedKernel.Events;
 using Hpn.SharedKernel.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
@@ -62,6 +63,12 @@ try
     // the host exposes the current principal to every module (backbone §11).
     services.AddHttpContextAccessor();
     services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
+    // Coarse request country — internal-only, for the same-country privacy filter
+    // (ADR-028). Edge header first, then an offline GeoIP DB lookup on the client IP.
+    // Never surfaced to clients.
+    services.Configure<GeoIpOptions>(configuration.GetSection(GeoIpOptions.SectionName));
+    services.AddSingleton<GeoIpCountryDatabase>();
+    services.AddScoped<IClientCountryResolver, RequestClientCountryResolver>();
     services.AddAuthorization(options =>
     {
         options.DefaultPolicy = new AuthorizationPolicyBuilder()

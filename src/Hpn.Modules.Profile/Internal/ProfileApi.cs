@@ -50,8 +50,6 @@ internal sealed class ProfileApi(ProfileDbContext dbContext) : IProfileApi
                 p.DisplayName,
                 p.Gender.ToStorageValue(),
                 p.SelfDescribeText,
-                p.CountryCode,
-                p.Bio,
                 p.Verified,
                 p.ProfileInterests
                     .OrderBy(pi => pi.Interest.Label)
