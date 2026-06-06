@@ -227,6 +227,19 @@ export function OnboardingFlow({ profile, onDone }: { profile: Profile | null; o
       return
     }
 
+    if (!hasExistingProfile) {
+      if (!displayName.trim() || !gender) {
+        setError('Add a display name and choose how you appear before uploading photos.')
+        return
+      }
+      try {
+        await upsert.mutateAsync({ displayName: displayName.trim(), gender, selfDescribeText: null })
+      } catch (e) {
+        setError((e as Error).message)
+        return
+      }
+    }
+
     setError(null)
     try {
       for (const file of selectedFiles) {

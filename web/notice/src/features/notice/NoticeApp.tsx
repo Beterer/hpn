@@ -28,6 +28,26 @@ function initialTab(): NavName {
   return 'feed'
 }
 
+// The toast is a one-shot per notification. Persist the ids we've already shown so
+// a page refresh doesn't re-pop a toast for a notification that is still unseen
+// (the dot, not the toast, is what persists until the user opens Received).
+const TOASTED_KEY = 'notice.toastedNotificationIds'
+function loadToastedIds(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(TOASTED_KEY) ?? '[]') as string[])
+  } catch {
+    return new Set()
+  }
+}
+function rememberToastedId(id: string) {
+  try {
+    const ids = [...loadToastedIds(), id].slice(-50) // bound the stored history
+    localStorage.setItem(TOASTED_KEY, JSON.stringify(ids))
+  } catch {
+    // localStorage unavailable (private mode / quota) — degrade to per-session.
+  }
+}
+
 /**
  * Root of the Notice redesign (ADR-025): the app-root column with header, the
  * active tab, and the bottom nav. Branches on account (anon vs member) and, for
@@ -41,7 +61,8 @@ export function NoticeApp({ me }: { me: Me | null }) {
   const profile = useMyProfile()
   const summary = useNotificationSummary(!anon)
   const markSeen = useMarkNotificationsSeen()
-  const toastedRef = useRef<Set<string>>(new Set())
+  const toastedRef = useRef<Set<string> | null>(null)
+  toastedRef.current ??= loadToastedIds()
   const [toast, setToast] = useState<NotificationItem | null>(null)
 
   const latest = summary.data?.latest ?? null
@@ -49,8 +70,10 @@ export function NoticeApp({ me }: { me: Me | null }) {
 
   useEffect(() => {
     if (!latest || latest.seen || tab === 'received') return
-    if (toastedRef.current.has(latest.id)) return
-    toastedRef.current.add(latest.id)
+    const toasted = toastedRef.current!
+    if (toasted.has(latest.id)) return
+    toasted.add(latest.id)
+    rememberToastedId(latest.id)
     setToast(latest)
   }, [latest, tab])
 
@@ -61,6 +84,12 @@ export function NoticeApp({ me }: { me: Me | null }) {
     // The mutation is intentionally driven only by entering Received or unseen state changing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, anon, hasUnseen])
+
+  // Navigating to Received acknowledges the toast just like tapping it would.
+  const goTab = (next: NavName) => {
+    if (next === 'received') setToast(null)
+    setTab(next)
+  }
 
   // Member without an active profile → full-screen setup (no chrome).
   const needsOnboarding = !anon && (!profile.data || profile.data.status === 'draft')
@@ -107,7 +136,7 @@ export function NoticeApp({ me }: { me: Me | null }) {
               )}
             </div>
 
-            <BottomNav tab={tab} onTab={setTab} hasUnseen={hasUnseen && tab !== 'received'} />
+            <BottomNav tab={tab} onTab={goTab} hasUnseen={hasUnseen && tab !== 'received'} />
           </>
         )}
 

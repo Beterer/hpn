@@ -37,3 +37,6 @@ src/Hpn.Api/openapi/
 # Offline GeoIP database (fetched via `make geoip`, not committed)
 *.mmdb
 src/Hpn.Api/App_Data/
+
+# superpowers plugin scratch/brainstorm cache
+.superpowers/

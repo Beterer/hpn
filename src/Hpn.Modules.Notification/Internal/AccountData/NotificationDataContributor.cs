@@ -15,7 +15,7 @@ internal sealed class NotificationDataContributor(NotificationDbContext dbContex
             .AsNoTracking()
             .Where(n => n.UserId == scope.UserId)
             .OrderByDescending(n => n.CreatedAt)
-            .Select(n => new { n.Type, n.TraitLabel, n.CategorySlug, n.CreatedAt, n.SeenAt })
+            .Select(n => new { n.Type, n.TraitLabel, n.CategorySlug, n.Phrasing, n.CreatedAt, n.SeenAt })
             .ToArrayAsync(cancellationToken);
 
         if (rows.Length == 0)
@@ -30,6 +30,7 @@ internal sealed class NotificationDataContributor(NotificationDbContext dbContex
                 Type = NotificationTypeFormat.ToStorageValue(n.Type),
                 n.TraitLabel,
                 n.CategorySlug,
+                n.Phrasing,
                 n.CreatedAt,
                 n.SeenAt,
             }).ToArray(),

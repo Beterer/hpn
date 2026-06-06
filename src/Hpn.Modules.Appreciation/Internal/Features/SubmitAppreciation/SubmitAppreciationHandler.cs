@@ -1,5 +1,6 @@
 using Hpn.Modules.Appreciation.Contracts.Events;
 using Hpn.Modules.Appreciation.Internal.Domain;
+using Hpn.Modules.Appreciation.Internal.Features.GetReceivedAppreciation;
 using Hpn.Modules.Appreciation.Internal.Persistence;
 using Hpn.Modules.Photo.Contracts;
 using Hpn.Modules.Profile.Contracts;
@@ -179,6 +180,7 @@ internal sealed class SubmitAppreciationHandler(
                     appreciation.PhotoId,
                     trait.TraitLabel,
                     trait.CategorySlug,
+                    ReceivedAppreciationPhrasing.ForEvent(trait.TraitSlug, trait.TraitLabel),
                     appreciation.CreatedAt),
                 cancellationToken);
             await transaction.CommitAsync(cancellationToken);

@@ -19,7 +19,7 @@ internal sealed class GetNotificationSummaryHandler(NotificationDbContext dbCont
             .AsNoTracking()
             .Where(n => n.UserId == userId)
             .OrderByDescending(n => n.CreatedAt)
-            .Select(n => new { n.Id, n.Type, n.TraitLabel, n.CategorySlug, n.CreatedAt, Seen = n.SeenAt != null })
+            .Select(n => new { n.Id, n.Type, n.TraitLabel, n.CategorySlug, n.Phrasing, n.CreatedAt, Seen = n.SeenAt != null })
             .Take(1)
             .ToArrayAsync(cancellationToken);
 
@@ -30,6 +30,7 @@ internal sealed class GetNotificationSummaryHandler(NotificationDbContext dbCont
                 NotificationTypeFormat.ToStorageValue(rows[0].Type),
                 rows[0].TraitLabel,
                 rows[0].CategorySlug,
+                rows[0].Phrasing,
                 rows[0].CreatedAt,
                 rows[0].Seen);
 
