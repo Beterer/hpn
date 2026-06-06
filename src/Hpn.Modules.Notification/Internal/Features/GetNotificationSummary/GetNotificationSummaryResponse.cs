@@ -9,5 +9,6 @@ internal sealed record NotificationItemResponse(
     string Type,
     string TraitLabel,
     string CategorySlug,
+    string Phrasing,
     DateTimeOffset CreatedAt,
     bool Seen);

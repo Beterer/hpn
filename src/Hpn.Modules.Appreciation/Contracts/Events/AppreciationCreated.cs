@@ -11,4 +11,7 @@ public sealed record AppreciationCreated(
     Guid? PhotoId,
     string TraitLabel,
     string CategorySlug,
+    // Natural, receiver-facing sentence ("Someone felt your good vibe.") — the
+    // canonical perception copy, so consumers never re-template the raw label.
+    string Phrasing,
     DateTimeOffset OccurredAt) : IDomainEvent;

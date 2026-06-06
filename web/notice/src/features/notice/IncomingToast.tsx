@@ -13,12 +13,14 @@ export function IncomingToast({
   onDismiss: () => void
 }) {
   useEffect(() => {
-    const id = setTimeout(onDismiss, 8000)
+    const id = setTimeout(onDismiss, 5000)
     return () => clearTimeout(id)
   }, [onDismiss])
 
   const hue = CATEGORY_HUE[item.categorySlug] ?? 38
-  const title = `Someone just noticed your ${item.traitLabel.toLowerCase()}.`
+  // Canonical, receiver-facing copy from the API (reads naturally for every trait,
+  // including adjectives like "confident" and phrases like "made me grin").
+  const title = item.phrasing
 
   return (
     <button className="toast" type="button" onClick={onOpen}>

@@ -20,6 +20,7 @@ internal sealed class NotificationConfiguration : IEntityTypeConfiguration<Notif
         builder.Property(n => n.SourceId).IsRequired();
         builder.Property(n => n.TraitLabel).HasMaxLength(120).IsRequired();
         builder.Property(n => n.CategorySlug).HasMaxLength(64).IsRequired();
+        builder.Property(n => n.Phrasing).HasMaxLength(200).IsRequired();
         builder.Property(n => n.CreatedAt).IsRequired();
 
         builder.HasIndex(n => new { n.UserId, n.Type, n.SourceId }).IsUnique();

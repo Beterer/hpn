@@ -22,6 +22,7 @@ internal sealed class AppreciationReceivedNotificationHandler(
             domainEvent.AppreciationId,
             domainEvent.TraitLabel,
             domainEvent.CategorySlug,
+            domainEvent.Phrasing,
             domainEvent.OccurredAt,
             cancellationToken);
     }

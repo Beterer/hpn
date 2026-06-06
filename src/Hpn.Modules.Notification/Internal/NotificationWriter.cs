@@ -15,6 +15,7 @@ internal sealed class NotificationWriter(NotificationDbContext dbContext)
         Guid sourceAppreciationId,
         string traitLabel,
         string categorySlug,
+        string phrasing,
         DateTimeOffset occurredAt,
         CancellationToken cancellationToken = default)
     {
@@ -24,9 +25,9 @@ internal sealed class NotificationWriter(NotificationDbContext dbContext)
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
              INSERT INTO notification.notifications
-                 (id, user_id, type, source_id, trait_label, category_slug, created_at, seen_at)
+                 (id, user_id, type, source_id, trait_label, category_slug, phrasing, created_at, seen_at)
              VALUES
-                 ({id}, {userId}, {type}, {sourceAppreciationId}, {traitLabel}, {categorySlug}, {occurredAt}, NULL)
+                 ({id}, {userId}, {type}, {sourceAppreciationId}, {traitLabel}, {categorySlug}, {phrasing}, {occurredAt}, NULL)
              ON CONFLICT (user_id, type, source_id) DO NOTHING
              """,
             cancellationToken);

@@ -58,6 +58,8 @@ public sealed class NotificationFlowTests : IAsyncLifetime
         latest.GetProperty("type").GetString().Should().Be("appreciation_received");
         latest.GetProperty("traitLabel").GetString().Should().Be("Warm smile");
         latest.GetProperty("categorySlug").GetString().Should().Be("physical");
+        // Canonical perception copy, never the awkward raw label, and never the sender.
+        latest.GetProperty("phrasing").GetString().Should().Be("Someone noticed your warm smile.");
         latest.GetProperty("seen").GetBoolean().Should().BeFalse();
         latest.TryGetProperty("senderUserId", out _).Should().BeFalse();
 
