@@ -2,11 +2,15 @@ import { NavIcon, Wordmark, type NavName } from './ui'
 
 export function AppHeader({
   anon,
+  incomplete = false,
   onNudge,
+  onResume,
   onGear,
 }: {
   anon: boolean
+  incomplete?: boolean
   onNudge: () => void
+  onResume?: () => void
   onGear: () => void
 }) {
   return (
@@ -21,6 +25,16 @@ export function AppHeader({
             <path d="M18 7v6M21 10h-6" />
           </svg>
           <span className="nudge-label">Be noticed back</span>
+        </button>
+      ) : incomplete ? (
+        <button className="nudge" onClick={onResume} aria-label="Finish setting up your profile">
+          <span className="nudge-halo" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="8" r="3.4" />
+            <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+            <path d="M18 7v6M21 10h-6" />
+          </svg>
+          <span className="nudge-label">Finish your profile</span>
         </button>
       ) : (
         <button className="ghost-btn" onClick={onGear} aria-label="Settings">

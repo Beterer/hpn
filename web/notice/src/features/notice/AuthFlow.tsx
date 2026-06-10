@@ -9,8 +9,8 @@ import { Wordmark } from './ui'
  * link only — the SPA never handles tokens (ADR-012). Same 202 response whether
  * or not the account exists, so copy never reveals existence.
  */
-export function AuthFlow({ onClose }: { onClose: () => void }) {
-  const [mode, setMode] = useState<'create' | 'signin'>('create')
+export function AuthFlow({ onClose, initialMode = 'create' }: { onClose: () => void; initialMode?: 'create' | 'signin' }) {
+  const [mode, setMode] = useState<'create' | 'signin'>(initialMode)
   const [email, setEmail] = useState('')
   const magic = useMutation({ mutationFn: (value: string) => requestMagicLink(value) })
 

@@ -31,6 +31,7 @@ export function VerifyPage() {
     verifyMagicLink(token)
       .then(async () => {
         clearGuestState()
+        queryClient.removeQueries({ queryKey: authKeys.guestSession })
         await queryClient.invalidateQueries({ queryKey: authKeys.me })
         await queryClient.invalidateQueries({ queryKey: profileKeys.mine })
         await queryClient.invalidateQueries({ queryKey: photoKeys.mine })

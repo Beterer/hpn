@@ -9,16 +9,10 @@ import { AuthFlow } from './AuthFlow'
 import { FeedScreen } from './FeedScreen'
 import { IncomingToast } from './IncomingToast'
 import { OnboardingFlow } from './OnboardingFlow'
+import { clearDeferred, readDeferred, writeDeferred } from './onboardingDeferral'
 import { FingerprintScreen, LockedScreen, ReceivedScreen } from './Panels'
 import { YouScreen } from './YouScreen'
 import type { NavName } from './ui'
-
-// Ensures the anonymous browser has a guest session cookie so the feed (which is
-// guest-or-member) loads. Rendered only while signed out.
-function GuestBoot() {
-  useEnsureGuestSession()
-  return null
-}
 
 function initialTab(): NavName {
   const path = window.location.pathname
@@ -56,9 +50,27 @@ function rememberToastedId(id: string) {
  */
 export function NoticeApp({ me }: { me: Me | null }) {
   const anon = me === null
+  const accountId = me?.user.id ?? null
   const [tab, setTab] = useState<NavName>(initialTab)
   const [authOpen, setAuthOpen] = useState(false)
-  const profile = useMyProfile()
+  const [authInitial, setAuthInitial] = useState<'create' | 'signin'>('create')
+  // "Browse for now" lets an incomplete member out of the setup wall into the shell.
+  // Persisted per account so a refresh doesn't re-trap them; re-read when the signed-in
+  // account changes (React's adjust-state-during-render pattern) so a different member on
+  // the same browser still gets their own first-run onboarding.
+  const [deferred, setDeferred] = useState(() => readDeferred(accountId))
+  const [deferredAccountId, setDeferredAccountId] = useState(accountId)
+  if (deferredAccountId !== accountId) {
+    setDeferredAccountId(accountId)
+    setDeferred(readDeferred(accountId))
+  }
+
+  const openAuth = (mode: 'create' | 'signin' = 'create') => {
+    setAuthInitial(mode)
+    setAuthOpen(true)
+  }
+  const guestSession = useEnsureGuestSession(anon)
+  const profile = useMyProfile(!anon)
   const summary = useNotificationSummary(!anon)
   const markSeen = useMarkNotificationsSeen()
   const toastedRef = useRef<Set<string> | null>(null)
@@ -91,21 +103,51 @@ export function NoticeApp({ me }: { me: Me | null }) {
     setTab(next)
   }
 
-  // Member without an active profile → full-screen setup (no chrome).
-  const needsOnboarding = !anon && (!profile.data || profile.data.status === 'draft')
+  // Member without an active profile. They land in full-screen setup, but can defer it
+  // ("Browse for now") to use the shell, then resume from the header / You / locked tabs.
+  const noProfile = !anon && (!profile.data || profile.data.status === 'draft')
+  const showOnboarding = noProfile && !deferred
+
+  const deferOnboarding = () => {
+    writeDeferred(accountId)
+    setDeferred(true)
+    setTab('feed')
+  }
+  const resumeOnboarding = () => {
+    clearDeferred(accountId)
+    setDeferred(false)
+    setTab('feed')
+  }
+  const finishOnboarding = () => {
+    clearDeferred(accountId)
+    setTab('feed')
+  }
 
   return (
     <div className="notice-root">
       <div className="app-root">
-        {anon && <GuestBoot />}
-
-        {!anon && profile.isLoading ? (
+        {anon && guestSession.isLoading ? (
+          <div className="centered-note">Opening Notice…</div>
+        ) : anon && guestSession.isError ? (
+          <div className="centered-note">
+            <p>{guestSession.error.message}</p>
+            <button className="big-btn ghost" style={{ maxWidth: 200 }} onClick={() => void guestSession.refetch()}>
+              Try again
+            </button>
+          </div>
+        ) : !anon && profile.isLoading ? (
           <div className="centered-note">Loading…</div>
-        ) : needsOnboarding ? (
-          <OnboardingFlow profile={profile.data ?? null} onDone={() => setTab('feed')} />
+        ) : showOnboarding ? (
+          <OnboardingFlow profile={profile.data ?? null} onDone={finishOnboarding} onDefer={deferOnboarding} />
         ) : (
           <>
-            <AppHeader anon={anon} onNudge={() => setAuthOpen(true)} onGear={() => setTab('you')} />
+            <AppHeader
+              anon={anon}
+              incomplete={noProfile}
+              onNudge={() => openAuth()}
+              onResume={resumeOnboarding}
+              onGear={() => setTab('you')}
+            />
 
             {toast && (
               <IncomingToast
@@ -122,16 +164,26 @@ export function NoticeApp({ me }: { me: Me | null }) {
               {tab === 'feed' && <FeedScreen />}
 
               {tab === 'received' &&
-                (anon ? <LockedScreen kind="received" onNudge={() => setAuthOpen(true)} /> : <ReceivedScreen />)}
+                (anon || noProfile ? (
+                  <LockedScreen kind="received" incomplete={noProfile} onNudge={noProfile ? resumeOnboarding : () => openAuth()} />
+                ) : (
+                  <ReceivedScreen />
+                ))}
 
               {tab === 'fingerprint' &&
-                (anon ? <LockedScreen kind="fingerprint" onNudge={() => setAuthOpen(true)} /> : <FingerprintScreen />)}
+                (anon || noProfile ? (
+                  <LockedScreen kind="fingerprint" incomplete={noProfile} onNudge={noProfile ? resumeOnboarding : () => openAuth()} />
+                ) : (
+                  <FingerprintScreen />
+                ))}
 
               {tab === 'you' && (
                 <YouScreen
                   mode={anon ? 'guest' : 'member'}
+                  incomplete={noProfile}
                   profile={profile.data ?? null}
-                  onCreateProfile={() => setAuthOpen(true)}
+                  onCreateProfile={noProfile ? resumeOnboarding : () => openAuth()}
+                  onSignIn={() => openAuth('signin')}
                 />
               )}
             </div>
@@ -142,7 +194,7 @@ export function NoticeApp({ me }: { me: Me | null }) {
 
         {authOpen && (
           <div className="auth-overlay">
-            <AuthFlow onClose={() => setAuthOpen(false)} />
+            <AuthFlow onClose={() => setAuthOpen(false)} initialMode={authInitial} />
           </div>
         )}
       </div>

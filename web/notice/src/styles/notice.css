@@ -445,6 +445,30 @@ body {
 .dist-row { display: grid; grid-template-columns: 74px 1fr 38px; align-items: center; gap: 10px; }
 .dist-label { font-size: 13px; font-weight: 600; }
 .dist-pct { font-size: 12.5px; font-weight: 700; color: var(--ink-2); text-align: right; }
+
+/* ── Fingerprint mirror: how you see others ──────────────────────────── */
+.block.mirror { padding-top: 26px; }
+.mirror-divider { display: flex; align-items: center; margin-bottom: 22px; }
+.mirror-divider span {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+.mirror-eyebrow { margin-bottom: 8px; }
+.mirror-h {
+  font-family: var(--display); font-weight: 700; font-size: 22px;
+  line-height: 1.14; letter-spacing: -0.015em; color: var(--ink);
+}
+.mirror-sum { margin-top: 10px; }
+.notice-list { display: flex; flex-direction: column; gap: 11px; margin-top: 18px; }
+.notice-row .fp-bar span { background: var(--coral); }
+.mirror-read {
+  margin: 18px 0 0; padding: 14px 16px; border-radius: 14px;
+  background: var(--coral-soft);
+  border: 1px solid color-mix(in oklch, var(--coral) 22%, transparent);
+  font-size: 13px; line-height: 1.5; color: var(--ink-2);
+}
+.mirror-read strong { color: var(--coral-deep); font-weight: 700; }
+
 .form-progress { display: flex; flex-direction: column; gap: 12px; }
 .form-progress .fp-bar { height: 9px; }
 .radar-card.nascent { position: relative; }

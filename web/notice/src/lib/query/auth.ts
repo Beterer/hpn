@@ -31,7 +31,9 @@ export function useLogout() {
   return useMutation({
     mutationFn: logout,
     onSuccess: () => {
+      clearGuestState()
       queryClient.setQueryData(authKeys.me, null)
+      queryClient.removeQueries({ queryKey: authKeys.guestSession })
       queryClient.removeQueries({ queryKey: profileKeys.mine })
       queryClient.removeQueries({ queryKey: photoKeys.mine })
     },
@@ -55,7 +57,7 @@ function persistGuestSession(session: { nudgeThreshold: unknown }) {
   localStorage.setItem(guestProfilesSeenKey, localStorage.getItem(guestProfilesSeenKey) ?? '0')
 }
 
-export function useEnsureGuestSession() {
+export function useEnsureGuestSession(enabled: boolean) {
   return useQuery({
     queryKey: authKeys.guestSession,
     queryFn: async () => {
@@ -63,6 +65,7 @@ export function useEnsureGuestSession() {
       persistGuestSession(session)
       return session
     },
+    enabled,
     staleTime: Infinity,
     retry: false,
   })

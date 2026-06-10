@@ -14,10 +14,11 @@ export const profileKeys = {
   interests: ['profile', 'interests'] as const,
 }
 
-export function useMyProfile() {
+export function useMyProfile(enabled = true) {
   return useQuery<Profile | null>({
     queryKey: profileKeys.mine,
     queryFn: getMyProfile,
+    enabled,
     retry: false,
   })
 }

@@ -1,5 +1,5 @@
 import type { components } from '../../lib/api/generated/schema'
-import { useReceivedAppreciation } from '../../lib/query/appreciation'
+import { useAppreciationStyle, useReceivedAppreciation } from '../../lib/query/appreciation'
 import { useMyFingerprint } from '../../lib/query/socialFingerprint'
 import { cat, catInk, catSoft } from './colors'
 import { CATEGORY_HUE, CATEGORY_ORDER } from './taxonomy'
@@ -160,6 +160,7 @@ export function Radar({ distribution }: { distribution: DistItem[] }) {
 // ── Fingerprint ─────────────────────────────────────────────────────────────
 export function FingerprintScreen() {
   const fingerprint = useMyFingerprint()
+  const appreciationStyle = useAppreciationStyle()
 
   if (fingerprint.isLoading) {
     return <div className="centered-note">Reading the pattern people have noticed…</div>
@@ -204,6 +205,12 @@ export function FingerprintScreen() {
   }
 
   const sorted = [...distribution].sort((a, b) => Number(b.share) - Number(a.share))
+  const styleData = appreciationStyle.data
+  const styleCategories =
+    styleData?.status === 'ready'
+      ? [...(styleData.categories ?? [])].sort((a, b) => Number(b.share) - Number(a.share))
+      : []
+  const leadStyle = styleCategories[0]
 
   return (
     <div className="scroll-screen">
@@ -256,24 +263,56 @@ export function FingerprintScreen() {
           })}
         </div>
       </section>
+
+      {leadStyle && (
+        <section className="block mirror">
+          <div className="mirror-divider"><span /></div>
+          <p className="eyebrow mirror-eyebrow">The other side of your fingerprint</p>
+          <h2 className="mirror-h">And how you see others</h2>
+          <p className="lead-sum mirror-sum">
+            The flip side of your fingerprint — a private reading of what you tend to notice first in other people.
+          </p>
+
+          <div className="notice-list">
+            {styleCategories.map((category) => (
+              <div key={category.categoryId} className="dist-row notice-row">
+                <span className="dist-label">{category.label}</span>
+                <div className="fp-bar"><span style={{ width: pct(category.share) }} /></div>
+                <span className="dist-pct">{pct(category.share)}</span>
+              </div>
+            ))}
+          </div>
+
+          <p className="mirror-read">
+            You notice <strong>{leadStyle.label.toLowerCase()}</strong> first. {leadStyle.insight}
+          </p>
+        </section>
+      )}
       <div className="screen-pad" />
     </div>
   )
 }
 
 // ── Locked (anon hitting Received / Fingerprint) ────────────────────────────
-export function LockedScreen({ kind, onNudge }: { kind: 'received' | 'fingerprint'; onNudge: () => void }) {
+// `incomplete` = a signed-in member who hasn't finished their profile (they deferred
+// setup), as opposed to an anonymous browser. The copy and the button then point at
+// finishing the profile rather than creating an account.
+export function LockedScreen({ kind, incomplete = false, onNudge }: { kind: 'received' | 'fingerprint'; incomplete?: boolean; onNudge: () => void }) {
   const copy =
     kind === 'fingerprint'
       ? {
           eyebrow: 'Fingerprint',
-          h: 'Your fingerprint grows once people can notice you.',
-          p: 'Create a profile and others can start appreciating you. We turn what they choose into a private perception shape — only ever shown to you.',
+          h: incomplete ? 'Your fingerprint grows once your profile is live.' : 'Your fingerprint grows once people can notice you.',
+          p: incomplete
+            ? 'Finish your profile and others can start appreciating you. We turn what they choose into a private perception shape — only ever shown to you.'
+            : 'Create a profile and others can start appreciating you. We turn what they choose into a private perception shape — only ever shown to you.',
         }
       : {
           eyebrow: 'Received',
-          h: "Nothing to receive yet — you're browsing anonymously.",
-          p: 'Set up a profile to be noticed back. The kind words people choose about you collect here, privately.',
+          h: incomplete ? "Nothing here yet — your profile isn't live." : "Nothing to receive yet — you're browsing anonymously.",
+          p: incomplete
+            ? 'Finish your profile to be noticed back. The kind words people choose about you collect here, privately.'
+            : 'Set up a profile to be noticed back. The kind words people choose about you collect here, privately.',
         }
   return (
     <div className="scroll-screen">
@@ -283,7 +322,7 @@ export function LockedScreen({ kind, onNudge }: { kind: 'received' | 'fingerprin
         <p className="lead-sum">{copy.p}</p>
       </section>
       <LockedArt />
-      <button className="big-btn primary" onClick={onNudge}>Create my profile</button>
+      <button className="big-btn primary" onClick={onNudge}>{incomplete ? 'Finish my profile' : 'Create my profile'}</button>
       <div className="screen-pad" />
     </div>
   )

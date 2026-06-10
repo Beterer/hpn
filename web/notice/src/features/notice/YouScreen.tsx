@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import type { Profile } from '../../lib/api/profile'
-import { useAppreciationStyle } from '../../lib/query/appreciation'
 import { useLogout } from '../../lib/query/auth'
 import { useBlocks, useExportAccount, useRequestAccountDeletion, useUnblock, useUpdateVisibility } from '../../lib/query/settings'
 import { OnboardingFlow } from './OnboardingFlow'
 
-type Sub = 'main' | 'edit' | 'blocked' | 'style'
+type Sub = 'main' | 'edit' | 'blocked'
 
 const ChevronRight = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
@@ -13,26 +12,34 @@ const ChevronRight = () => (
 
 export function YouScreen({
   mode,
+  incomplete = false,
   profile,
   onCreateProfile,
+  onSignIn,
 }: {
   mode: 'guest' | 'member'
+  incomplete?: boolean
   profile: Profile | null
   onCreateProfile: () => void
+  onSignIn?: () => void
 }) {
   const [sub, setSub] = useState<Sub>('main')
 
-  if (mode === 'guest' || !profile) {
+  if (mode === 'guest' || !profile || incomplete) {
+    const member = mode === 'member'
     return (
       <div className="scroll-screen">
         <section className="lead">
           <p className="eyebrow">You</p>
-          <h1>You're appreciating anonymously.</h1>
+          <h1>{member ? 'Finish setting up your profile.' : "You're appreciating anonymously."}</h1>
           <p className="lead-sum">
-            Set up a profile to be noticed back. We never show age, height, body type, income, scores, or public counts.
+            {member
+              ? 'You can browse freely. Add a few details and a photo so the people you appreciate can appreciate you too.'
+              : 'Set up a profile to be noticed back. We never show age, height, body type, income, scores, or public counts.'}
           </p>
         </section>
-        <button className="big-btn primary" onClick={onCreateProfile}>Create my profile</button>
+        <button className="big-btn primary" onClick={onCreateProfile}>{member ? 'Finish my profile' : 'Create my profile'}</button>
+        {!member && onSignIn && <button className="welcome-skip" onClick={onSignIn}>I already have an account</button>}
         <div className="screen-pad" />
       </div>
     )
@@ -44,10 +51,6 @@ export function YouScreen({
   if (sub === 'blocked') {
     return <BlockedView onBack={() => setSub('main')} />
   }
-  if (sub === 'style') {
-    return <StyleView onBack={() => setSub('main')} />
-  }
-
   return <YouMain profile={profile} onOpen={setSub} />
 }
 
@@ -106,7 +109,6 @@ function YouMain({ profile, onOpen }: { profile: Profile; onOpen: (s: Sub) => vo
         <h2 className="block-h">Profile & data</h2>
         <div className="link-list">
           <button className="link-row" onClick={() => onOpen('edit')}>Edit profile <ChevronRight /></button>
-          <button className="link-row" onClick={() => onOpen('style')}>How you appreciate <ChevronRight /></button>
           <button className="link-row" onClick={() => onOpen('blocked')}>Blocked people <ChevronRight /></button>
           <button className="link-row" disabled={exportData.isPending} onClick={() => exportData.mutate()}>
             {exportData.isPending ? 'Preparing…' : 'Download my data'} <ChevronRight />
@@ -159,40 +161,6 @@ function BlockedView({ onBack }: { onBack: () => void }) {
           </div>
         ))}
       </div>
-      <div className="screen-pad" />
-    </div>
-  )
-}
-
-function StyleView({ onBack }: { onBack: () => void }) {
-  const style = useAppreciationStyle()
-  const data = style.data
-  const ready = data?.status === 'ready'
-  const categories = data?.categories ?? []
-
-  return (
-    <div className="scroll-screen">
-      <button className="welcome-skip" style={{ alignSelf: 'flex-start', marginLeft: -4 }} onClick={onBack}>← You</button>
-      <section className="lead">
-        <p className="eyebrow">How you appreciate</p>
-        <h1>{data?.headline ?? 'What you tend to notice'}</h1>
-        <p className="lead-sum">{data?.summary ?? 'A private reading of the qualities you tend to notice in others.'}</p>
-      </section>
-      {style.isLoading && <p className="lead-sum">Loading…</p>}
-      {!ready && !style.isLoading && <p className="lead-sum">{data?.summary}</p>}
-      {ready && (
-        <section className="block">
-          <div className="dist-list">
-            {[...categories].sort((a, b) => Number(b.share) - Number(a.share)).map((c) => (
-              <div key={c.categoryId} className="dist-row">
-                <span className="dist-label">{c.label}</span>
-                <div className="fp-bar"><span style={{ width: `${Math.round(Number(c.share) * 100)}%`, background: 'var(--coral)' }} /></div>
-                <span className="dist-pct">{Math.round(Number(c.share) * 100)}%</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
       <div className="screen-pad" />
     </div>
   )
